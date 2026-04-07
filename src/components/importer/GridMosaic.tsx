@@ -1,0 +1,109 @@
+import Button from '@/components/ui/Button'
+import type { GridCellsResult } from '@/lib/imageProcessor'
+
+interface GridMosaicProps {
+  cells: GridCellsResult
+  onConfirm: () => void
+  onRetry: () => void
+}
+
+/**
+ * Affiche la mosaïque des cases découpées pour vérification visuelle.
+ * Disposition :
+ *   [ vide ] | [col 0] | [col 1] | … | [col N]
+ *   [row 0]  | [0,0]   | [0,1]   | … | [0,N]
+ *   …
+ */
+export default function GridMosaic({ cells, onConfirm, onRetry }: GridMosaicProps) {
+  const { nRows, nCols, colClueCells, rowClueCells, interiorCells } = cells
+
+  // On aplatit toutes les cases dans un tableau ordonné pour le CSS grid
+  type CellEntry =
+    | { key: string; kind: 'corner' }
+    | { key: string; kind: 'col-clue'; url: string; col: number }
+    | { key: string; kind: 'row-clue'; url: string; row: number }
+    | { key: string; kind: 'interior'; url: string; row: number; col: number }
+
+  const entries: CellEntry[] = []
+
+  // Ligne du haut : coin vide + cases d'indices colonnes
+  entries.push({ key: 'corner', kind: 'corner' })
+  for (let j = 0; j < nCols; j++)
+    entries.push({ key: `col-${j}`, kind: 'col-clue', url: colClueCells[j], col: j })
+
+  // Lignes suivantes : case d'indice ligne + cases intérieures
+  for (let i = 0; i < nRows; i++) {
+    entries.push({ key: `row-${i}`, kind: 'row-clue', url: rowClueCells[i], row: i })
+    for (let j = 0; j < nCols; j++)
+      entries.push({
+        key: `cell-${i}-${j}`,
+        kind: 'interior',
+        url: interiorCells[i][j],
+        row: i,
+        col: j,
+      })
+  }
+
+  const CELL = 56 // px par case dans la mosaïque
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-gray-600">
+        Grille détectée&nbsp;:{' '}
+        <span className="font-medium">
+          {nRows}&nbsp;×&nbsp;{nCols}
+        </span>
+        . Vérifiez que chaque case est correctement découpée.
+      </p>
+
+      <div className="overflow-auto rounded border border-gray-200 p-2">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${nCols + 1}, ${CELL}px)`,
+            gap: 2,
+          }}
+        >
+          {entries.map((e) => {
+            if (e.kind === 'corner') {
+              return (
+                <div
+                  key={e.key}
+                  style={{ width: CELL, height: CELL }}
+                  className="rounded bg-gray-100"
+                />
+              )
+            }
+            const borderClass =
+              e.kind === 'col-clue'
+                ? 'border-primary-300'
+                : e.kind === 'row-clue'
+                  ? 'border-primary-300'
+                  : 'border-gray-300'
+            return (
+              <img
+                key={e.key}
+                src={e.url}
+                style={{ width: CELL, height: CELL, objectFit: 'cover' }}
+                className={`rounded border ${borderClass}`}
+              />
+            )
+          })}
+        </div>
+      </div>
+
+      <p className="text-xs text-gray-400">
+        Cases oranges = indices (hors grille). Cases grises = intérieur de la grille de jeu.
+      </p>
+
+      <div className="flex gap-2">
+        <Button onClick={onConfirm} className="flex-1">
+          Continuer → Reconnaissance des chiffres
+        </Button>
+        <Button variant="secondary" onClick={onRetry}>
+          Recadrer
+        </Button>
+      </div>
+    </div>
+  )
+}

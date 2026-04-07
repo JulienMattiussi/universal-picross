@@ -1,0 +1,180 @@
+import { useEffect, useRef, useState } from 'react'
+import Button from '@/components/ui/Button'
+import type { Point } from '@/lib/imageProcessor'
+
+interface CornerSelectorProps {
+  imageData: ImageData
+  onConfirm: (p1: Point, p2: Point) => void
+  onCancel: () => void
+}
+
+const MARKER_COLOR = '#f97316'
+const HIT_RADIUS = 12 // px — rayon de détection pour le drag
+
+export default function CornerSelector({ imageData, onConfirm, onCancel }: CornerSelectorProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [corners, setCorners] = useState<Point[]>([])
+  // Index du coin en cours de déplacement (-1 = aucun). Ref pour ne pas retriggerer les effets.
+  const draggingIdx = useRef<number>(-1)
+  const [cursor, setCursor] = useState<'crosshair' | 'grab' | 'grabbing'>('crosshair')
+
+  const MAX_W = 560
+  const MAX_H = 420
+  const scale = Math.min(MAX_W / imageData.width, MAX_H / imageData.height, 1)
+  const displayW = Math.round(imageData.width * scale)
+  const displayH = Math.round(imageData.height * scale)
+
+  /** Convertit un MouseEvent en coordonnées canvas (corrige le ratio CSS/interne) */
+  const canvasPos = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
+    const rect = canvasRef.current!.getBoundingClientRect()
+    return {
+      x: (e.clientX - rect.left) * (canvasRef.current!.width / rect.width),
+      y: (e.clientY - rect.top) * (canvasRef.current!.height / rect.height),
+    }
+  }
+
+  /** Retourne l'index du coin proche du point donné, ou -1 */
+  const hitCorner = (p: Point): number =>
+    corners.findIndex((c) => Math.hypot(c.x - p.x, c.y - p.y) < HIT_RADIUS)
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const pos = canvasPos(e)
+    const idx = hitCorner(pos)
+    if (idx >= 0) {
+      // Commence le drag sur un coin existant
+      draggingIdx.current = idx
+      setCursor('grabbing')
+    } else if (corners.length < 2) {
+      // Pose un nouveau coin
+      setCorners([...corners, pos])
+    }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const pos = canvasPos(e)
+    if (draggingIdx.current >= 0) {
+      // Déplace le coin en cours
+      const next = [...corners]
+      next[draggingIdx.current] = pos
+      setCorners(next)
+    } else {
+      // Met à jour le curseur selon la proximité d'un coin
+      setCursor(hitCorner(pos) >= 0 ? 'grab' : 'crosshair')
+    }
+  }
+
+  const handleMouseUp = () => {
+    draggingIdx.current = -1
+    setCursor('crosshair')
+  }
+
+  // Dessin : redimensionne puis dessine image + overlay dans le même effet
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')!
+
+    canvas.width = displayW
+    canvas.height = displayH
+
+    const tmp = document.createElement('canvas')
+    tmp.width = imageData.width
+    tmp.height = imageData.height
+    tmp.getContext('2d')!.putImageData(imageData, 0, 0)
+    ctx.drawImage(tmp, 0, 0, displayW, displayH)
+
+    if (corners.length === 0) return
+
+    // Masque hors-sélection + rectangle si 2 coins
+    if (corners.length === 2) {
+      const [c1, c2] = corners
+      const rx = Math.min(c1.x, c2.x)
+      const ry = Math.min(c1.y, c2.y)
+      const rw = Math.abs(c2.x - c1.x)
+      const rh = Math.abs(c2.y - c1.y)
+      ctx.fillStyle = 'rgba(0,0,0,0.38)'
+      ctx.fillRect(0, 0, displayW, displayH)
+      ctx.drawImage(tmp, rx, ry, rw, rh, rx, ry, rw, rh)
+      ctx.strokeStyle = MARKER_COLOR
+      ctx.lineWidth = 2
+      ctx.setLineDash([])
+      ctx.strokeRect(rx, ry, rw, rh)
+    }
+
+    // Marqueurs de coins
+    for (const c of corners) {
+      ctx.strokeStyle = MARKER_COLOR
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([4, 3])
+      ctx.beginPath()
+      ctx.moveTo(c.x - 14, c.y)
+      ctx.lineTo(c.x + 14, c.y)
+      ctx.moveTo(c.x, c.y - 14)
+      ctx.lineTo(c.x, c.y + 14)
+      ctx.stroke()
+      ctx.setLineDash([])
+      // Cercle de drag (indique qu'on peut déplacer)
+      ctx.strokeStyle = MARKER_COLOR
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.arc(c.x, c.y, HIT_RADIUS, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.fillStyle = MARKER_COLOR
+      ctx.beginPath()
+      ctx.arc(c.x, c.y, 4, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }, [corners, imageData, displayW, displayH])
+
+  const handleConfirm = () => {
+    if (corners.length < 2) return
+    const canvas = canvasRef.current!
+    const sx = imageData.width / canvas.width
+    const sy = imageData.height / canvas.height
+    onConfirm(
+      { x: corners[0].x * sx, y: corners[0].y * sy },
+      {
+        x: corners[1].x * sx,
+        y: corners[1].y * sy,
+      },
+    )
+  }
+
+  const instructions = [
+    'Cliquez sur le premier coin de la grille (ex : coin haut-gauche).',
+    'Cliquez sur le coin opposé (ex : coin bas-droit).',
+    'Glissez les points pour ajuster, puis validez.',
+  ]
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-gray-600">{instructions[Math.min(corners.length, 2)]}</p>
+
+      <canvas
+        ref={canvasRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{ cursor }}
+        className="rounded border border-gray-200 max-w-full"
+      />
+
+      <div className="flex gap-2">
+        {corners.length === 2 && (
+          <Button onClick={handleConfirm} className="flex-1">
+            Valider la sélection
+          </Button>
+        )}
+        {corners.length > 0 && (
+          <Button variant="secondary" onClick={() => setCorners([])}>
+            Recommencer
+          </Button>
+        )}
+        <Button variant="secondary" onClick={onCancel}>
+          Annuler
+        </Button>
+      </div>
+    </div>
+  )
+}
