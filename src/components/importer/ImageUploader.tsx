@@ -46,7 +46,7 @@ export default function ImageUploader({ onImage }: ImageUploaderProps) {
     <div
       className={[
         'border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer',
-        dragOver ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 hover:border-indigo-300',
+        dragOver ? 'border-primary-400 bg-primary-50' : 'border-gray-300 hover:border-primary-300',
       ].join(' ')}
       onClick={() => inputRef.current?.click()}
       onDragOver={(e) => {
@@ -76,7 +76,7 @@ export default function ImageUploader({ onImage }: ImageUploaderProps) {
         <>
           <p className="text-gray-500 text-sm">
             Glissez une image ici ou{' '}
-            <span className="text-indigo-600 font-medium">cliquez pour choisir</span>
+            <span className="text-primary-600 font-medium">cliquez pour choisir</span>
           </p>
           <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP acceptés</p>
         </>

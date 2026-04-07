@@ -36,7 +36,7 @@ export default function GeneratorPanel() {
           max={20}
           value={size}
           onChange={(e) => setSize(Number(e.target.value))}
-          className="accent-indigo-600"
+          className="accent-primary-500"
         />
         <div className="flex justify-between text-xs text-gray-400">
           <span>5</span>
@@ -53,8 +53,8 @@ export default function GeneratorPanel() {
               className={[
                 'flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
                 difficulty === value
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-primary-50',
               ].join(' ')}
               onClick={() => setDifficulty(value)}
             >

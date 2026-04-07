@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(make format-check)",
-      "Bash(make typecheck)"
+      "Bash(make typecheck)",
+      "Bash(npm show:*)",
+      "Bash(find:*)",
+      "Bash(npm audit:*)"
     ]
   }
 }

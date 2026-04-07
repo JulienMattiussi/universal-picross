@@ -1,15 +1,23 @@
 @import 'tailwindcss';
+@import './theme.css';
 
 @layer base {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
   body {
     margin: 0;
-    font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+      system-ui,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-surface);
   }
 
   #root {

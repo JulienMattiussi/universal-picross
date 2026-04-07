@@ -65,7 +65,8 @@ tests/
 - **100% front-end** : aucun appel à un serveur externe, pas de backend, pas d'API distante (sauf chargement lazy d'OpenCV.js depuis CDN).
 - **Pas de SSR** : Vite SPA uniquement. Ne pas introduire Next.js ou Remix.
 - **Alias `@/`** pointe vers `src/`. Toujours utiliser cet alias pour les imports internes, jamais de chemins relatifs `../../`.
-- **Tailwind v4** : utiliser `@import 'tailwindcss'` dans le CSS, pas de fichier `tailwind.config.js`. Les classes utilitaires sont la norme — pas de CSS custom sauf dans `index.css`.
+- **Tailwind v4** : utiliser `@import 'tailwindcss'` dans le CSS, pas de fichier `tailwind.config.js`. Les classes utilitaires sont la norme — pas de CSS custom sauf dans `index.css` et `theme.css`.
+- **`npm install` requiert `--legacy-peer-deps`** : `vite-plugin-pwa` n'a pas encore déclaré la compatibilité Vite 8 dans ses peer deps. Le flag est déjà dans le Makefile (`make install`).
 - **Tesseract.js et OpenCV.js sont lourds** (~8MB chacun) : ils doivent rester en **import dynamique / lazy-load**, jamais importés statiquement.
 - **TypeScript strict** : `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly` sont activés. Ne pas désactiver ces options.
 
@@ -92,6 +93,19 @@ tests/
 - **Ne pas mocker la logique métier** dans les tests de composants — utiliser les vraies fonctions `lib/`.
 - Les tests e2e Playwright couvrent les parcours utilisateur complets (générer → jouer → résoudre).
 - Lancer `npm run test` avant chaque commit pour s'assurer que les 44 tests passent.
+
+### Thème et couleurs
+- Le thème est centralisé dans **`src/theme.css`** via la directive `@theme` de Tailwind v4.
+- Toutes les couleurs UI utilisent le token **`primary-*`** (50 → 900) — jamais de couleur Tailwind en dur (`indigo-*`, `orange-*`, etc.) dans les composants.
+- Pour changer la palette de couleurs, modifier uniquement `src/theme.css`.
+- Fond de page : `--color-surface` défini dans `theme.css`, appliqué sur `body` dans `index.css`.
+- Couleur actuelle : orange chaud (`primary-500` = `#f97316`, `primary-600` = `#ea580c`).
+
+### Favicon et icône
+- **`public/favicon.svg`** : grille picross 5×6 fond orange, forme U en blanc.
+- Le favicon est aussi affiché dans le header de `HomePage.tsx` via `<img src="/favicon.svg" />`.
+- La couleur de fond du favicon (`fill` sur le `<rect>`) doit rester cohérente avec `primary-600`.
+- Syntaxe SVG native pour la transparence : `stroke-opacity="0.2"` — ne pas utiliser `rgba()` (non supporté par le linter SVG VSCode).
 
 ### Style
 - **Prettier** est configuré (`.prettierrc`) : single quotes, no semi, trailing comma, printWidth 100.
@@ -131,13 +145,20 @@ Si l'un des deux échoue, corriger avant de considérer le travail terminé.
 
 ## Commandes utiles
 
+Préférer le Makefile aux commandes `npm run` directement :
+
 ```bash
-npm run dev            # Serveur de développement (http://localhost:5173)
-npm run build          # Build de production (TypeScript + Vite)
-npm run test           # Tests unitaires et composants (Vitest)
-npm run test:watch     # Tests en mode watch
-npm run test:coverage  # Rapport de couverture
-npm run test:e2e       # Tests e2e Playwright (nécessite npm run dev)
-npm run format         # Formatage Prettier
-npm run lint           # Linting ESLint
+make install        # npm install --legacy-peer-deps + playwright install
+make start          # Serveur de développement (http://localhost:5173)
+make build          # Build de production
+make test-unit      # Tests unitaires et composants (Vitest)
+make test-e2e       # Tests e2e Playwright
+make test           # Tous les tests
+make format         # Formatage Prettier
+make format-check   # Vérification formatage (sans écrire)
+make typecheck      # Vérification TypeScript
+make lint           # ESLint
+make fix            # format + lint
+make check          # build + lint + typecheck + test-unit
+make clean          # Supprime dist/ et node_modules/
 ```

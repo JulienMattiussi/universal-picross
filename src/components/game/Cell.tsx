@@ -12,7 +12,7 @@ interface CellProps {
 }
 
 const stateClasses: Record<CellState, string> = {
-  unknown: 'bg-white hover:bg-indigo-50 active:bg-indigo-100',
+  unknown: 'bg-white hover:bg-primary-50 active:bg-primary-100',
   filled: 'bg-gray-800',
   empty: 'bg-white',
   marked: 'bg-white',
@@ -77,10 +77,10 @@ export default function Cell({
       aria-label={`Case ${row + 1},${col + 1} : ${state}`}
       className={[
         'relative flex items-center justify-center select-none',
-        'transition-colors duration-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
+        'transition-colors duration-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
         stateClasses[state],
         borderClasses,
-        isHighlighted ? 'bg-indigo-50' : '',
+        isHighlighted ? 'bg-primary-50' : '',
         isError ? '!bg-red-200' : '',
       ]
         .filter(Boolean)
@@ -93,7 +93,7 @@ export default function Cell({
       onTouchMove={handleTouchMove}
     >
       {state === 'marked' && (
-        <svg viewBox="0 0 10 10" className="w-1/2 h-1/2 text-gray-400 pointer-events-none">
+        <svg viewBox="0 0 10 10" className="w-1/2 h-1/2 text-primary-400 pointer-events-none">
           <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" strokeWidth="2" />
           <line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" strokeWidth="2" />
         </svg>

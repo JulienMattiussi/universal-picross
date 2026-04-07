@@ -9,8 +9,11 @@ export default function HomePage() {
 
   return (
     <main className="flex flex-col items-center gap-8 py-8 px-4 min-h-svh">
-      <header className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">Universal Picross</h1>
+      <header className="text-center flex flex-col items-center gap-2">
+        <div className="flex items-center gap-3">
+          <img src="/favicon.svg" alt="" width={40} height={40} />
+          <h1 className="text-3xl font-bold text-gray-900">Universal Picross</h1>
+        </div>
         <p className="text-gray-500 text-sm">Générez, jouez et résolvez des nonogrammes</p>
       </header>
 
