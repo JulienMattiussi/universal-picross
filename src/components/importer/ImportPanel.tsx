@@ -3,41 +3,42 @@ import ImageUploader from './ImageUploader'
 import CameraCapture from './CameraCapture'
 import CornerSelector from './CornerSelector'
 import GridMosaic from './GridMosaic'
-import GridCorrector from './GridCorrector'
-import Modal from '@/components/ui/Modal'
+import ClueValidator from './ClueValidator'
 import Spinner from '@/components/ui/Spinner'
 import {
   extractGridCells,
-  processImageWithCorners,
-  PROCESS_STEPS,
+  recognizeAllClueCells,
   type GridCellsResult,
-  type ProcessResult,
-  type ProcessStep,
   type Point,
 } from '@/lib/imageProcessor'
-
-const STEP_LABELS: Record<ProcessStep, string> = {
-  cropping: "Recadrage de l'image…",
-  'analyzing-grid': 'Analyse des lignes de la grille…',
-  'extracting-clues': "Extraction des zones d'indices…",
-  'loading-ocr': 'Chargement du moteur OCR…',
-  'recognizing-rows': 'Lecture des indices de lignes…',
-  'recognizing-cols': 'Lecture des indices de colonnes…',
-  finalizing: 'Finalisation…',
-}
+import { puzzleFromSolution } from '@/lib/generator'
+import { useGame } from '@/hooks/useGame'
 
 type Tab = 'upload' | 'camera'
-type Phase = 'upload' | 'selecting' | 'extracting' | 'mosaic' | 'processing' | 'done'
+type Phase =
+  | 'upload'
+  | 'selecting'
+  | 'extracting'
+  | 'mosaic'
+  | 'recognizing'
+  | 'validating'
+  | 'processing'
+  | 'done'
 
 export default function ImportPanel() {
+  const { loadPuzzle, reset } = useGame()
+
   const [tab, setTab] = useState<Tab>('upload')
   const [phase, setPhase] = useState<Phase>('upload')
   const [imageData, setImageData] = useState<ImageData | null>(null)
-  const [corners, setCorners] = useState<[Point, Point] | null>(null)
+  const [, setCorners] = useState<[Point, Point] | null>(null)
   const [gridCells, setGridCells] = useState<GridCellsResult | null>(null)
-  const [currentStep, setCurrentStep] = useState<ProcessStep | null>(null)
-  const [result, setResult] = useState<ProcessResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [recognizeProgress, setRecognizeProgress] = useState({ done: 0, total: 0 })
+  const [recognizedValues, setRecognizedValues] = useState<{
+    rows: string[]
+    cols: string[]
+  } | null>(null)
 
   const handleImage = (data: ImageData) => {
     setImageData(data)
@@ -72,49 +73,59 @@ export default function ImportPanel() {
   }
 
   const handleMosaicConfirmed = async () => {
-    if (!imageData || !corners) return
-    setPhase('processing')
-    setCurrentStep(null)
-    const res = await processImageWithCorners(imageData, corners[0], corners[1], setCurrentStep)
-    if ('message' in res) {
-      setError(res.message)
-      setPhase('upload')
-    } else {
-      setResult(res)
-      setPhase('done')
-    }
+    if (!gridCells) return
+    const total = gridCells.nCols + gridCells.nRows
+    setRecognizeProgress({ done: 0, total })
+    setPhase('recognizing')
+    const values = await recognizeAllClueCells(gridCells, (done, t) =>
+      setRecognizeProgress({ done, total: t }),
+    )
+    setRecognizedValues(values)
+    setPhase('validating')
   }
 
-  const reset = () => {
+  const handleValidationComplete = (rowClues: number[][], colClues: number[][]) => {
+    const size = Math.max(rowClues.length, colClues.length)
+    const emptyGrid = Array.from({ length: size }, () => Array(size).fill(false))
+    const puzzle = puzzleFromSolution(emptyGrid)
+    puzzle.clues.rows = rowClues
+    puzzle.clues.cols = colClues
+    loadPuzzle(puzzle)
+    reset()
+    resetAll()
+  }
+
+  const resetAll = () => {
     setPhase('upload')
     setImageData(null)
     setCorners(null)
     setGridCells(null)
-    setCurrentStep(null)
     setError(null)
-    setResult(null)
+    setRecognizedValues(null)
   }
 
   // Retour d'une étape en arrière selon la phase courante
   const goBack: Partial<Record<Phase, () => void>> = {
-    selecting: reset,
-    extracting: reset,
+    selecting: resetAll,
+    extracting: resetAll,
     mosaic: () => {
       setGridCells(null)
       setCorners(null)
       setError(null)
       setPhase('selecting')
     },
+    validating: () => setPhase('mosaic'),
   }
 
   const PHASE_TITLES: Partial<Record<Phase, string>> = {
     selecting: 'Sélection de la grille',
     extracting: 'Sélection de la grille',
     mosaic: 'Vérification du découpage',
+    recognizing: 'Reconnaissance des chiffres',
+    validating: 'Validation des indices',
     processing: 'Reconnaissance des indices',
   }
 
-  const currentStepIdx = currentStep ? PROCESS_STEPS.indexOf(currentStep) : -1
   const back = goBack[phase]
 
   return (
@@ -167,7 +178,11 @@ export default function ImportPanel() {
 
       {/* Phase sélection des coins */}
       {(phase === 'selecting' || phase === 'extracting') && imageData && (
-        <CornerSelector imageData={imageData} onConfirm={handleCornersConfirmed} onCancel={reset} />
+        <CornerSelector
+          imageData={imageData}
+          onConfirm={handleCornersConfirmed}
+          onCancel={resetAll}
+        />
       )}
 
       {/* Découpage en cours (opérations canvas synchrones) */}
@@ -187,45 +202,33 @@ export default function ImportPanel() {
         />
       )}
 
-      {/* Phase traitement — liste des étapes avec suivi */}
-      {phase === 'processing' && (
-        <div className="flex flex-col gap-3 py-2">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Spinner />
-            <span className="font-medium">
-              {currentStep ? STEP_LABELS[currentStep] : 'Démarrage…'}
-            </span>
+      {/* Phase reconnaissance OCR avec barre de progression */}
+      {phase === 'recognizing' && (
+        <div className="flex flex-col items-center gap-3 py-4">
+          <Spinner />
+          <span className="text-sm text-gray-600 font-medium">
+            Reconnaissance des chiffres… ({recognizeProgress.done} / {recognizeProgress.total})
+          </span>
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div
+              className="bg-primary-500 h-2 rounded-full transition-all"
+              style={{
+                width: `${recognizeProgress.total ? (recognizeProgress.done / recognizeProgress.total) * 100 : 0}%`,
+              }}
+            />
           </div>
-          <ol className="flex flex-col gap-1 pl-1">
-            {PROCESS_STEPS.map((step, idx) => {
-              const done = idx < currentStepIdx
-              const active = idx === currentStepIdx
-              return (
-                <li key={step} className="flex items-center gap-2 text-sm">
-                  <span
-                    className={[
-                      'w-4 text-center font-mono',
-                      done ? 'text-green-500' : active ? 'text-primary-500' : 'text-gray-300',
-                    ].join(' ')}
-                  >
-                    {done ? '✓' : active ? '›' : '○'}
-                  </span>
-                  <span
-                    className={done ? 'text-gray-400' : active ? 'text-gray-800' : 'text-gray-400'}
-                  >
-                    {STEP_LABELS[step]}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
         </div>
       )}
 
-      {/* Phase résultat */}
-      <Modal open={phase === 'done' && !!result} onClose={reset} title="Vérification des indices">
-        {result && <GridCorrector result={result} onClose={reset} />}
-      </Modal>
+      {/* Phase validation manuelle des indices */}
+      {phase === 'validating' && gridCells && recognizedValues && (
+        <ClueValidator
+          cells={gridCells}
+          initialValues={recognizedValues}
+          onComplete={handleValidationComplete}
+          onBack={() => setPhase('mosaic')}
+        />
+      )}
     </div>
   )
 }

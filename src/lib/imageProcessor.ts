@@ -229,6 +229,18 @@ function parseNums(text: string): number[] {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers internes
+// ---------------------------------------------------------------------------
+
+function loadImageFromUrl(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.src = url
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Points d'entrée publics
 // ---------------------------------------------------------------------------
 
@@ -310,6 +322,58 @@ export function extractGridCells(
   )
 
   return { nRows, nCols, colClueCells, rowClueCells, interiorCells }
+}
+
+/**
+ * Reconnaît les chiffres dans chaque case d'indice individuellement.
+ * Traite d'abord les cases de colonnes, puis les cases de lignes.
+ * Appelle onProgress après chaque case traitée.
+ */
+export async function recognizeAllClueCells(
+  cells: GridCellsResult,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ rows: string[]; cols: string[] }> {
+  const { nRows, nCols, colClueCells, rowClueCells } = cells
+  const total = nCols + nRows
+
+  const { createWorker } = await import('tesseract.js')
+  const worker = await createWorker('eng', 1, { logger: () => {} })
+  await worker.setParameters({
+    tessedit_char_whitelist: '0123456789 ',
+    tessedit_pageseg_mode: '11' as unknown as Parameters<
+      typeof worker.setParameters
+    >[0]['tessedit_pageseg_mode'],
+  })
+
+  const processCell = async (url: string): Promise<string> => {
+    const img = await loadImageFromUrl(url)
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    canvas.getContext('2d')!.drawImage(img, 0, 0)
+    const prepared = upscaleCanvas(normalizeToBlackWhite(canvas), 4)
+    const result = await worker.recognize(prepared)
+    return result.data.text
+      .trim()
+      .replace(/[^0-9 ]/g, '')
+      .trim()
+  }
+
+  const colResults: string[] = []
+  for (let j = 0; j < nCols; j++) {
+    colResults.push(await processCell(colClueCells[j]))
+    onProgress?.(j + 1, total)
+  }
+
+  const rowResults: string[] = []
+  for (let i = 0; i < nRows; i++) {
+    rowResults.push(await processCell(rowClueCells[i]))
+    onProgress?.(nCols + i + 1, total)
+  }
+
+  await worker.terminate()
+
+  return { rows: rowResults, cols: colResults }
 }
 
 /**
