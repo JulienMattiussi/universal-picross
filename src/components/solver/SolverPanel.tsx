@@ -22,9 +22,7 @@ export default function SolverPanel() {
         setStatus('playing')
         return
       }
-      const grid: PlayGrid = solution.map((row) =>
-        row.map((cell) => (cell ? 'filled' : 'empty')),
-      )
+      const grid: PlayGrid = solution.map((row) => row.map((cell) => (cell ? 'filled' : 'empty')))
       applyGrid(grid)
       setStatus('solved')
     }, 0)

@@ -15,12 +15,8 @@ interface GridCorrectorProps {
  */
 export default function GridCorrector({ result, onClose }: GridCorrectorProps) {
   const { loadPuzzle } = useGame()
-  const [rows, setRows] = useState<string[]>(
-    result.rawClues.rows.map((r) => r.join(' ')),
-  )
-  const [cols, setCols] = useState<string[]>(
-    result.rawClues.cols.map((c) => c.join(' ')),
-  )
+  const [rows, setRows] = useState<string[]>(result.rawClues.rows.map((r) => r.join(' ')))
+  const [cols, setCols] = useState<string[]>(result.rawClues.cols.map((c) => c.join(' ')))
 
   const parseClues = (lines: string[]) =>
     lines.map((l) =>
@@ -61,9 +57,7 @@ export default function GridCorrector({ result, onClose }: GridCorrectorProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-            Lignes
-          </span>
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Lignes</span>
           {rows.map((r, i) => (
             <input
               key={i}

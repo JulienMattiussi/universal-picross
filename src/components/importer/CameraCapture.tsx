@@ -25,12 +25,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
 
       {isStreaming ? (
         <>
-          <video
-            ref={videoRef}
-            className="w-full rounded-lg bg-black"
-            playsInline
-            muted
-          />
+          <video ref={videoRef} className="w-full rounded-lg bg-black" playsInline muted />
           <div className="flex gap-2">
             <Button onClick={handleCapture} className="flex-1">
               Capturer
@@ -41,12 +36,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
           </div>
         </>
       ) : (
-        <Button
-          variant="secondary"
-          onClick={startCamera}
-          disabled={captured}
-          className="w-full"
-        >
+        <Button variant="secondary" onClick={startCamera} disabled={captured} className="w-full">
           {captured ? 'Photo prise ✓' : '📷 Prendre une photo'}
         </Button>
       )}

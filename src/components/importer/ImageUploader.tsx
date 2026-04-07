@@ -49,7 +49,10 @@ export default function ImageUploader({ onImage }: ImageUploaderProps) {
         dragOver ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 hover:border-indigo-300',
       ].join(' ')}
       onClick={() => inputRef.current?.click()}
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        setDragOver(true)
+      }}
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
       role="button"

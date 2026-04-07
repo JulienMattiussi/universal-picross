@@ -18,9 +18,7 @@ interface GameStore {
 }
 
 function makeEmptyGrid(rows: number, cols: number): PlayGrid {
-  return Array.from({ length: rows }, () =>
-    Array<CellState>(cols).fill('unknown'),
-  )
+  return Array.from({ length: rows }, () => Array<CellState>(cols).fill('unknown'))
 }
 
 function checkWin(grid: PlayGrid, puzzle: PicrossPuzzle): boolean {

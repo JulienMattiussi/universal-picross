@@ -24,12 +24,7 @@ export default function ClueList({
     return (
       <div className="flex flex-row items-center">
         {paddedClue.map((v, i) => (
-          <ClueCell
-            key={i}
-            value={v ?? 0}
-            size={cellSize}
-            completed={v !== null && completed}
-          />
+          <ClueCell key={i} value={v ?? 0} size={cellSize} completed={v !== null && completed} />
         ))}
       </div>
     )
@@ -38,12 +33,7 @@ export default function ClueList({
   return (
     <div className="flex flex-col items-center">
       {paddedClue.map((v, i) => (
-        <ClueCell
-          key={i}
-          value={v ?? 0}
-          size={cellSize}
-          completed={v !== null && completed}
-        />
+        <ClueCell key={i} value={v ?? 0} size={cellSize} completed={v !== null && completed} />
       ))}
     </div>
   )

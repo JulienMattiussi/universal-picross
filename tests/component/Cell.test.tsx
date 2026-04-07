@@ -19,10 +19,7 @@ describe('Cell', () => {
 
   it('affiche le bon aria-label', () => {
     render(<Cell {...defaultProps} row={1} col={2} />)
-    expect(screen.getByRole('button')).toHaveAttribute(
-      'aria-label',
-      'Case 2,3 : unknown',
-    )
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Case 2,3 : unknown')
   })
 
   it('appelle onFill au clic gauche', () => {
@@ -39,17 +36,17 @@ describe('Cell', () => {
     expect(onMark).toHaveBeenCalledWith(0, 0)
   })
 
-  it('affiche une croix pour l\'état marked', () => {
+  it("affiche une croix pour l'état marked", () => {
     render(<Cell {...defaultProps} state="marked" />)
     expect(screen.getByRole('button').querySelector('svg')).toBeInTheDocument()
   })
 
-  it('n\'affiche pas de croix pour l\'état filled', () => {
+  it("n'affiche pas de croix pour l'état filled", () => {
     render(<Cell {...defaultProps} state="filled" />)
     expect(screen.getByRole('button').querySelector('svg')).toBeNull()
   })
 
-  it('applique la classe d\'erreur quand isError=true', () => {
+  it("applique la classe d'erreur quand isError=true", () => {
     render(<Cell {...defaultProps} isError={true} />)
     expect(screen.getByRole('button').className).toContain('bg-red-200')
   })

@@ -25,7 +25,10 @@ export default function GeneratorPanel() {
 
       <div className="flex flex-col gap-2">
         <label className="text-sm text-gray-600">
-          Taille : <span className="font-medium">{size}×{size}</span>
+          Taille :{' '}
+          <span className="font-medium">
+            {size}×{size}
+          </span>
         </label>
         <input
           type="range"
@@ -36,7 +39,8 @@ export default function GeneratorPanel() {
           className="accent-indigo-600"
         />
         <div className="flex justify-between text-xs text-gray-400">
-          <span>5</span><span>20</span>
+          <span>5</span>
+          <span>20</span>
         </div>
       </div>
 

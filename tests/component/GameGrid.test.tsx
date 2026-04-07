@@ -8,26 +8,12 @@ const makeGrid = (rows: number, cols: number): PlayGrid =>
 
 describe('GameGrid', () => {
   it('rend le bon nombre de cases', () => {
-    render(
-      <GameGrid
-        grid={makeGrid(3, 3)}
-        cellSize={32}
-        onFill={vi.fn()}
-        onMark={vi.fn()}
-      />,
-    )
+    render(<GameGrid grid={makeGrid(3, 3)} cellSize={32} onFill={vi.fn()} onMark={vi.fn()} />)
     expect(screen.getAllByRole('button')).toHaveLength(9)
   })
 
   it('rend une grille 5×5', () => {
-    render(
-      <GameGrid
-        grid={makeGrid(5, 5)}
-        cellSize={32}
-        onFill={vi.fn()}
-        onMark={vi.fn()}
-      />,
-    )
+    render(<GameGrid grid={makeGrid(5, 5)} cellSize={32} onFill={vi.fn()} onMark={vi.fn()} />)
     expect(screen.getAllByRole('button')).toHaveLength(25)
   })
 
@@ -42,14 +28,7 @@ describe('GameGrid', () => {
   })
 
   it('a un role grid', () => {
-    render(
-      <GameGrid
-        grid={makeGrid(2, 2)}
-        cellSize={32}
-        onFill={vi.fn()}
-        onMark={vi.fn()}
-      />,
-    )
+    render(<GameGrid grid={makeGrid(2, 2)} cellSize={32} onFill={vi.fn()} onMark={vi.fn()} />)
     expect(screen.getByRole('grid')).toBeInTheDocument()
   })
 })

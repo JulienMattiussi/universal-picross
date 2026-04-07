@@ -24,9 +24,7 @@ export default function GamePage() {
       {/* Barre supérieure */}
       <div className="flex items-center justify-between w-full max-w-2xl">
         <span className="font-mono text-lg text-gray-600">{formatted}</span>
-        {status === 'solved' && (
-          <span className="text-green-600 font-semibold">Résolu !</span>
-        )}
+        {status === 'solved' && <span className="text-green-600 font-semibold">Résolu !</span>}
         <Button variant="ghost" size="sm" onClick={reset}>
           Recommencer
         </Button>

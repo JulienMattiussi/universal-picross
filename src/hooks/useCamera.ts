@@ -31,7 +31,7 @@ export function useCamera(): UseCameraReturn {
       }
       setIsStreaming(true)
     } catch {
-      setError('Impossible d\'accéder à la caméra. Vérifiez les permissions.')
+      setError("Impossible d'accéder à la caméra. Vérifiez les permissions.")
     }
   }, [])
 

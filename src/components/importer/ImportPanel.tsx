@@ -60,14 +60,8 @@ export default function ImportPanel() {
         <CameraCapture onCapture={handleImage} />
       )}
 
-      <Modal
-        open={!!result}
-        onClose={() => setResult(null)}
-        title="Vérification des indices"
-      >
-        {result && (
-          <GridCorrector result={result} onClose={() => setResult(null)} />
-        )}
+      <Modal open={!!result} onClose={() => setResult(null)} title="Vérification des indices">
+        {result && <GridCorrector result={result} onClose={() => setResult(null)} />}
       </Modal>
     </div>
   )

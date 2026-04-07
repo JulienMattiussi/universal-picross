@@ -65,7 +65,15 @@ async function detectGrid(imageData: ImageData): Promise<HTMLCanvasElement> {
 
   // Seuillage adaptatif
   const binary = new cv.Mat()
-  cv.adaptiveThreshold(gray, binary, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2)
+  cv.adaptiveThreshold(
+    gray,
+    binary,
+    255,
+    cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+    cv.THRESH_BINARY_INV,
+    11,
+    2,
+  )
 
   // Détection des contours
   const contours = new cv.MatVector()
@@ -95,8 +103,12 @@ async function detectGrid(imageData: ImageData): Promise<HTMLCanvasElement> {
   cv.imshow(resultCanvas, roi)
 
   // Nettoyage mémoire WebAssembly
-  src.delete(); gray.delete(); binary.delete()
-  contours.delete(); hierarchy.delete(); roi.delete()
+  src.delete()
+  gray.delete()
+  binary.delete()
+  contours.delete()
+  hierarchy.delete()
+  roi.delete()
 
   return resultCanvas
 }
@@ -115,7 +127,9 @@ async function extractCluesWithOCR(
 
   await worker.setParameters({
     tessedit_char_whitelist: '0123456789 ',
-    tessedit_pageseg_mode: '6' as unknown as Parameters<typeof worker.setParameters>[0]['tessedit_pageseg_mode'],
+    tessedit_pageseg_mode: '6' as unknown as Parameters<
+      typeof worker.setParameters
+    >[0]['tessedit_pageseg_mode'],
   })
 
   // Pour l'instant, on fait une reconnaissance sur toute l'image
@@ -129,7 +143,8 @@ async function extractCluesWithOCR(
     .map((l) => l.trim())
     .filter((l) => l.length > 0)
     .map((l) =>
-      l.split(/\s+/)
+      l
+        .split(/\s+/)
         .map(Number)
         .filter((n) => !isNaN(n) && n >= 0),
     )
@@ -146,9 +161,7 @@ async function extractCluesWithOCR(
  * Point d'entrée principal : traite une ImageData et retourne un ProcessResult
  * ou lance une ProcessError.
  */
-export async function processImage(
-  imageData: ImageData,
-): Promise<ProcessResult | ProcessError> {
+export async function processImage(imageData: ImageData): Promise<ProcessResult | ProcessError> {
   try {
     const gridCanvas = await detectGrid(imageData)
     const { rows, cols, confidence } = await extractCluesWithOCR(gridCanvas)
@@ -156,9 +169,7 @@ export async function processImage(
     // Construction d'une grille vide avec les indices extraits
     // (l'utilisateur confirmera / corrigera via GridCorrector)
     const size = Math.max(rows.length, cols.length, 5)
-    const emptyGrid: SolutionGrid = Array.from({ length: size }, () =>
-      Array(size).fill(false),
-    )
+    const emptyGrid: SolutionGrid = Array.from({ length: size }, () => Array(size).fill(false))
 
     return {
       grid: emptyGrid,

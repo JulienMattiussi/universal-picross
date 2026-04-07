@@ -26,9 +26,7 @@ function generateArrangements(clue: Clue, len: number): boolean[][] {
     const groupSize = clue[groupIdx]
     const remaining = clue.slice(groupIdx + 1)
     const minRemaining =
-      remaining.length > 0
-        ? remaining.reduce((a, b) => a + b, 0) + remaining.length
-        : 0
+      remaining.length > 0 ? remaining.reduce((a, b) => a + b, 0) + remaining.length : 0
     const maxStart = len - groupSize - minRemaining
 
     for (let pos = startPos; pos <= maxStart; pos++) {
@@ -71,9 +69,7 @@ function solveLine(clue: Clue, line: MaybeCell[]): MaybeCell[] | null {
  */
 export function solve(puzzle: PicrossPuzzle): SolutionGrid | null {
   const { rows, cols } = puzzle
-  const grid: WorkGrid = Array.from({ length: rows }, () =>
-    Array<MaybeCell>(cols).fill(null),
-  )
+  const grid: WorkGrid = Array.from({ length: rows }, () => Array<MaybeCell>(cols).fill(null))
   return propagateAndSolve(grid, puzzle)
 }
 
