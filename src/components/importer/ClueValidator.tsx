@@ -11,7 +11,8 @@ import {
   upscaleCanvas,
   addWhitePadding,
 } from '@/lib/image/canvas'
-import { segmentBlobs, extractBlob } from '@/lib/image/templateMatch'
+import { segmentBlobs, extractBlob, matchCellDigits } from '@/lib/image/templateMatch'
+import { loadImageFromUrl } from '@/lib/image/ocr'
 
 interface ClueValidatorProps {
   cells: GridCellsResult
@@ -44,12 +45,15 @@ export default function ClueValidator({
   const imageUrl = isCol ? colClueCells[current] : rowClueCells[current - nCols]
   const isLast = current === total - 1
 
-  // En mode debug : générer les images segmentées de la case courante
+  // En mode debug : générer les images segmentées + stocker les canvases
   const [blobUrls, setBlobUrls] = useState<string[]>([])
+  const [preparedCanvas, setPreparedCanvas] = useState<HTMLCanvasElement | null>(null)
+  const [blobCanvases, setBlobCanvases] = useState<HTMLCanvasElement[]>([])
+
   useEffect(() => {
     if (!debug) return
-    const img = new Image()
-    img.onload = () => {
+    ;(async () => {
+      const img = await loadImageFromUrl(imageUrl)
       const canvas = document.createElement('canvas')
       canvas.width = img.naturalWidth
       canvas.height = img.naturalHeight
@@ -59,11 +63,55 @@ export default function ClueValidator({
       )
       const factor = Math.max(2, Math.ceil(128 / Math.min(cleaned.width, cleaned.height)))
       const prepared = addWhitePadding(upscaleCanvas(cleaned, factor), 16)
+      setPreparedCanvas(prepared)
       const blobs = segmentBlobs(prepared)
-      setBlobUrls(blobs.map((b) => extractBlob(prepared, b).toDataURL('image/png')))
-    }
-    img.src = imageUrl
+      const bCanvases = blobs.map((b) => extractBlob(prepared, b))
+      setBlobCanvases(bCanvases)
+      setBlobUrls(bCanvases.map((c) => c.toDataURL('image/png')))
+    })()
   }, [imageUrl, debug])
+
+  // Lance la reconnaissance sur un canvas et logge le résultat
+  const recognizeAndLog = async (canvas: HTMLCanvasElement, imageLabel: string) => {
+    const dataUrl = canvas.toDataURL('image/png')
+    const tmplResult = matchCellDigits(canvas, false)
+
+    let tessResult = ''
+    try {
+      const { createWorker } = await import('tesseract.js')
+      const w = await createWorker('eng', 1, { logger: () => {} })
+      await w.setParameters({
+        tessedit_char_whitelist: '0123456789 ',
+        tessedit_pageseg_mode: '6' as unknown as Parameters<
+          typeof w.setParameters
+        >[0]['tessedit_pageseg_mode'],
+      })
+      const padded = addWhitePadding(canvas, 8)
+      const result = await Promise.race([
+        w.recognize(padded),
+        new Promise<null>((r) => setTimeout(() => r(null), 10_000)),
+      ])
+      if (result) {
+        tessResult = result.data.text
+          .trim()
+          .replace(/[^0-9\n ]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+      }
+      w.terminate().catch(() => {})
+    } catch {
+      /* ignore */
+    }
+
+    console.log(
+      `[${imageLabel}] %c     %c  Template: %c${tmplResult || '(vide)'}%c  Tesseract: %c${tessResult || '(vide)'}`,
+      `background:url(${dataUrl}) no-repeat center/contain;padding:24px 16px;border:1px solid #ccc`,
+      '',
+      tmplResult ? 'color:green;font-weight:bold' : 'color:red',
+      '',
+      tessResult ? 'color:green;font-weight:bold' : 'color:red',
+    )
+  }
 
   const updateValue = (val: string) => {
     setValues((prev) => {
@@ -117,8 +165,12 @@ export default function ClueValidator({
       {/* Cell image + blobs segmentés en debug */}
       <div className="flex justify-center items-end gap-3">
         <div
-          className="border border-brd rounded-lg bg-surface-secondary overflow-hidden"
+          className={[
+            'border border-brd rounded-lg bg-surface-secondary overflow-hidden',
+            debug && preparedCanvas ? 'cursor-pointer hover:border-primary-500' : '',
+          ].join(' ')}
           style={{ width: 128, height: 128 }}
+          onClick={() => debug && preparedCanvas && recognizeAndLog(preparedCanvas, 'Image brut')}
         >
           <img
             src={imageUrl}
@@ -136,8 +188,11 @@ export default function ClueValidator({
             {blobUrls.map((url, i) => (
               <div
                 key={i}
-                className="border border-primary-300 rounded bg-surface-card overflow-hidden"
+                className="border border-primary-300 rounded bg-surface-card overflow-hidden cursor-pointer hover:border-primary-500"
                 style={{ width: 48, height: 48 }}
+                onClick={() =>
+                  blobCanvases[i] && recognizeAndLog(blobCanvases[i], `Image segmentée ${i + 1}`)
+                }
               >
                 <img
                   src={url}

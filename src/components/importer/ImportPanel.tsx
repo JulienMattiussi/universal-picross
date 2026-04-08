@@ -88,10 +88,22 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
   }
 
   const startRecognition = async (cells: GridCellsResult) => {
+    const isDebug = useDebugStore.getState().debug
+
+    // En debug + couleur : skip la reconnaissance, saisie manuelle directe
+    if (isDebug && cells.colored) {
+      setIsSolvable(null)
+      setRecognizedValues({
+        cols: Array(cells.nCols).fill(''),
+        rows: Array(cells.nRows).fill(''),
+      })
+      setPhase('validating')
+      return
+    }
+
     const total = cells.nCols + cells.nRows
     setRecognizeProgress({ done: 0, total })
     setPhase('recognizing')
-    const isDebug = useDebugStore.getState().debug
     const values = await recognizeAllClueCells(
       cells,
       (done, t) => setRecognizeProgress({ done, total: t }),
