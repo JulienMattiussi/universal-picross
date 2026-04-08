@@ -47,23 +47,23 @@ export default function VictoryOverlay({ cheated }: VictoryOverlayProps) {
       {/* Confettis */}
       <div className="absolute inset-0 overflow-hidden">
         {confetti.map((c, i) => (
-            <div
-              key={i}
-              className="absolute rounded-sm animate-confetti"
-              style={
-                {
-                  left: `${c.x}%`,
-                  width: c.size,
-                  height: c.size * 0.6,
-                  backgroundColor: c.color,
-                  animationDelay: `${c.delay}s`,
-                  animationDuration: `${c.duration}s`,
-                  '--drift': `${c.drift}px`,
-                } as React.CSSProperties
-              }
-            />
-          ))}
-        </div>
+          <div
+            key={i}
+            className="absolute rounded-sm animate-confetti"
+            style={
+              {
+                left: `${c.x}%`,
+                width: c.size,
+                height: c.size * 0.6,
+                backgroundColor: c.color,
+                animationDelay: `${c.delay}s`,
+                animationDuration: `${c.duration}s`,
+                '--drift': `${c.drift}px`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
 
       {/* Texte central */}
       <div className="animate-victory-text text-center">

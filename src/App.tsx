@@ -1,9 +1,16 @@
-import { useEffect } from 'react'
-import HomePage from '@/pages/HomePage'
+import { useEffect, useState } from 'react'
+import HomePage, { type ImportMode } from '@/pages/HomePage'
+import GamePage from '@/pages/GamePage'
+import OptionsPage from '@/pages/OptionsPage'
 import { useDebugStore } from '@/store/debugStore'
+import { useGameStore } from '@/store/gameStore'
+
+type Page = 'home' | 'game' | 'options'
 
 export default function App() {
   const { debug, toggle } = useDebugStore()
+  const [page, setPage] = useState<Page>('home')
+  const [importMode, setImportMode] = useState<ImportMode | undefined>()
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -16,9 +23,35 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [toggle])
 
+  const handleImport = (mode: ImportMode) => {
+    // Reset le jeu précédent pour que l'import reparte de zéro
+    useGameStore.setState({ puzzle: null, grid: [], status: 'idle', cheated: false })
+    setImportMode(mode)
+    setPage('game')
+  }
+
+  const handleGenerated = () => {
+    setImportMode(undefined)
+    setPage('game')
+  }
+
+  const goHome = () => {
+    setPage('home')
+    setImportMode(undefined)
+  }
+
   return (
     <>
-      <HomePage />
+      {page === 'home' && (
+        <HomePage
+          onImport={handleImport}
+          onGenerated={handleGenerated}
+          onOptions={() => setPage('options')}
+        />
+      )}
+      {page === 'game' && <GamePage importMode={importMode} onBack={goHome} />}
+      {page === 'options' && <OptionsPage onBack={goHome} />}
+
       {debug && (
         <div className="fixed top-3 right-3 bg-gray-800 text-white text-xs font-mono px-2 py-0.5 rounded-full select-none pointer-events-none">
           debug

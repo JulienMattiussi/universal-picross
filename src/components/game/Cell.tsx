@@ -6,6 +6,8 @@ interface CellProps {
   col: number
   size: number
   isError?: boolean
+  thickTop?: boolean
+  thickLeft?: boolean
 }
 
 const stateClasses: Record<CellState, string> = {
@@ -15,11 +17,19 @@ const stateClasses: Record<CellState, string> = {
   marked: 'bg-white',
 }
 
-export default function Cell({ state, row, col, size, isError = false }: CellProps) {
+export default function Cell({
+  state,
+  row,
+  col,
+  size,
+  isError = false,
+  thickTop = false,
+  thickLeft = false,
+}: CellProps) {
   const borderClasses = [
     'border border-gray-300',
-    col % 5 === 0 && col !== 0 ? 'border-l-2 border-l-gray-500' : '',
-    row % 5 === 0 && row !== 0 ? 'border-t-2 border-t-gray-500' : '',
+    thickLeft ? 'border-l-2 border-l-gray-500' : '',
+    thickTop ? 'border-t-2 border-t-gray-500' : '',
   ]
     .filter(Boolean)
     .join(' ')

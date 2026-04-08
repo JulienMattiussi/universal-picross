@@ -18,7 +18,6 @@ import { solve } from '@/lib/solver'
 import { useGame } from '@/hooks/useGame'
 import { useDebugStore } from '@/store/debugStore'
 
-type Tab = 'upload' | 'camera'
 type Phase =
   | 'upload'
   | 'selecting'
@@ -28,11 +27,14 @@ type Phase =
   | 'validating'
   | 'correcting'
 
-export default function ImportPanel() {
+interface ImportPanelProps {
+  mode: 'image' | 'camera'
+}
+
+export default function ImportPanel({ mode }: ImportPanelProps) {
   const { loadPuzzle, reset } = useGame()
   const { debug } = useDebugStore()
 
-  const [tab, setTab] = useState<Tab>('upload')
   const [phase, setPhase] = useState<Phase>('upload')
   const [imageData, setImageData] = useState<ImageData | null>(null)
   const [, setCorners] = useState<[Point, Point] | null>(null)
@@ -158,7 +160,8 @@ export default function ImportPanel() {
     correcting: () => (debug && gridCells ? setPhase('mosaic') : setPhase('selecting')),
   }
 
-  const PHASE_TITLES: Partial<Record<Phase, string>> = {
+  const PHASE_TITLES: Record<Phase, string> = {
+    upload: mode === 'image' ? 'Charger une image' : 'Prendre une photo',
     selecting: 'Sélection de la grille',
     extracting: 'Sélection de la grille',
     mosaic: 'Vérification du découpage',
@@ -182,37 +185,16 @@ export default function ImportPanel() {
             ←
           </button>
         )}
-        <h3 className="font-semibold text-gray-800">
-          {PHASE_TITLES[phase] ?? 'Importer un picross'}
-        </h3>
+        <h3 className="font-semibold text-gray-800">{PHASE_TITLES[phase]}</h3>
       </div>
 
       {/* Phase upload */}
-      {phase === 'upload' && (
-        <>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            {(['upload', 'camera'] as const).map((t) => (
-              <button
-                key={t}
-                className={[
-                  'flex-1 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer',
-                  tab === t
-                    ? 'bg-white shadow-sm text-gray-900'
-                    : 'text-gray-500 hover:text-gray-700',
-                ].join(' ')}
-                onClick={() => setTab(t)}
-              >
-                {t === 'upload' ? '📂 Image' : '📷 Caméra'}
-              </button>
-            ))}
-          </div>
-          {tab === 'upload' ? (
-            <ImageUploader onImage={handleImage} />
-          ) : (
-            <CameraCapture onCapture={handleImage} />
-          )}
-        </>
-      )}
+      {phase === 'upload' &&
+        (mode === 'image' ? (
+          <ImageUploader onImage={handleImage} />
+        ) : (
+          <CameraCapture onCapture={handleImage} />
+        ))}
 
       {/* Erreur visible dans toutes les phases */}
       {error && <p className="text-sm text-red-500">{error}</p>}

@@ -23,6 +23,10 @@ export default function GameGrid({
   errorCells = new Set(),
   inputMode = 'fill',
 }: GameGridProps) {
+  const rows = grid.length
+  const cols = grid[0]?.length ?? 0
+  const useThickLines = rows % 5 === 0 && cols % 5 === 0
+
   const gridRef = useRef<HTMLDivElement>(null)
 
   // État du drag stocké en ref (pas de re-render nécessaire)
@@ -166,6 +170,8 @@ export default function GameGrid({
               col={c}
               size={cellSize}
               isError={errorCells.has(`${r},${c}`)}
+              thickTop={useThickLines && r > 0 && r % 5 === 0}
+              thickLeft={useThickLines && c > 0 && c % 5 === 0}
             />
           ))}
         </div>
