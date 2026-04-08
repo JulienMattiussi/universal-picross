@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import GameBoard from '@/components/game/GameBoard'
 import type { InputMode } from '@/components/game/GameGrid'
+import VictoryOverlay from '@/components/game/VictoryOverlay'
 import SolverPanel from '@/components/solver/SolverPanel'
 import Button from '@/components/ui/Button'
 import { useGame } from '@/hooks/useGame'
 import { useTimer } from '@/hooks/useTimer'
 
 export default function GamePage() {
-  const { puzzle, grid, status, fillCell, markCell, clearCell, reset } = useGame()
+  const { puzzle, grid, status, cheated, fillCell, markCell, clearCell, reset } = useGame()
   const { formatted } = useTimer()
   const boardRef = useRef<HTMLDivElement>(null)
   const [inputMode, setInputMode] = useState<InputMode>('fill')
@@ -16,6 +17,7 @@ export default function GamePage() {
   const cellSize = puzzle ? Math.max(20, Math.min(36, Math.floor(320 / puzzle.cols))) : 32
 
   useEffect(() => {
+    setInputMode('fill')
     boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [puzzle])
 
@@ -23,10 +25,17 @@ export default function GamePage() {
 
   return (
     <div className="flex flex-col items-center gap-6 py-6 px-4">
+      {/* Animation de victoire */}
+      {status === 'solved' && <VictoryOverlay cheated={cheated} />}
+
       {/* Barre supérieure */}
       <div className="flex items-center justify-between w-full max-w-2xl">
         <span className="font-mono text-lg text-gray-600">{formatted}</span>
-        {status === 'solved' && <span className="text-green-600 font-semibold">Résolu !</span>}
+        {status === 'solved' && (
+          <span className={cheated ? 'text-red-500 font-semibold' : 'text-green-600 font-semibold'}>
+            {cheated ? 'Tricheur !' : 'Bravo !'}
+          </span>
+        )}
         <Button variant="ghost" size="sm" onClick={reset}>
           Recommencer
         </Button>

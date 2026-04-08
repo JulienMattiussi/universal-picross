@@ -3,6 +3,7 @@ import Button from '@/components/ui/Button'
 import Spinner from '@/components/ui/Spinner'
 import { solve } from '@/lib/solver'
 import { useGame } from '@/hooks/useGame'
+import { useGameStore } from '@/store/gameStore'
 import type { PlayGrid } from '@/lib/types'
 
 export default function SolverPanel() {
@@ -23,6 +24,7 @@ export default function SolverPanel() {
         return
       }
       const grid: PlayGrid = solution.map((row) => row.map((cell) => (cell ? 'filled' : 'empty')))
+      useGameStore.setState({ cheated: true })
       applyGrid(grid)
       setStatus('solved')
     }, 0)

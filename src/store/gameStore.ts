@@ -6,6 +6,7 @@ interface GameStore {
   grid: PlayGrid
   status: GameStatus
   elapsedSeconds: number
+  cheated: boolean
 
   // Actions
   loadPuzzle: (puzzle: PicrossPuzzle) => void
@@ -37,6 +38,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   grid: [],
   status: 'idle',
   elapsedSeconds: 0,
+  cheated: false,
 
   loadPuzzle: (puzzle) => {
     set({
@@ -44,6 +46,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       grid: makeEmptyGrid(puzzle.rows, puzzle.cols),
       status: 'playing',
       elapsedSeconds: 0,
+      cheated: false,
     })
   },
 
@@ -96,6 +99,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       grid: makeEmptyGrid(puzzle.rows, puzzle.cols),
       status: 'playing',
       elapsedSeconds: 0,
+      cheated: false,
     })
   },
 

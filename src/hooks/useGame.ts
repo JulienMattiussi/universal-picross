@@ -7,6 +7,7 @@ export function useGame() {
   const puzzle = useGameStore((s) => s.puzzle)
   const grid = useGameStore((s) => s.grid)
   const status = useGameStore((s) => s.status)
+  const cheated = useGameStore((s) => s.cheated)
   const loadPuzzle = useGameStore((s) => s.loadPuzzle)
   const fillCell = useGameStore((s) => s.fillCell)
   const markCell = useGameStore((s) => s.markCell)
@@ -19,6 +20,7 @@ export function useGame() {
     puzzle,
     grid,
     status,
+    cheated,
     loadPuzzle,
     fillCell,
     markCell,

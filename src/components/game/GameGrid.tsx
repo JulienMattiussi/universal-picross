@@ -93,16 +93,12 @@ export default function GameGrid({
     }
     dragRef.current = { action, visited: new Set(), origin: [r, c], active: false }
 
-    // Long-press : pas de comportement spécial en mode erase
-    if (inputMode !== 'erase') {
+    // Long-press uniquement en mode fill (bascule vers mark)
+    if (inputMode === 'fill') {
       longPressRef.current = setTimeout(() => {
         longPressRef.current = null
         dragRef.current = null
-        if (inputMode === 'mark') {
-          onFill(r, c)
-        } else {
-          onMark(r, c)
-        }
+        onMark(r, c)
       }, 400)
     }
   }
