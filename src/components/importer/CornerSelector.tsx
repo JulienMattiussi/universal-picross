@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '@/components/ui/Button'
-import { expandCornersToGridEdges, type Point } from '@/lib/imageProcessor'
+import { expandCornersToGridEdges, type Point } from '@/lib/image'
 import { useTranslation } from '@/i18n/useTranslation'
 import { useDebugStore } from '@/store/debugStore'
 

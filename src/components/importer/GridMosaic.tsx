@@ -1,5 +1,5 @@
 import Button from '@/components/ui/Button'
-import type { GridCellsResult } from '@/lib/imageProcessor'
+import type { GridCellsResult } from '@/lib/image'
 import { useTranslation } from '@/i18n/useTranslation'
 
 interface GridMosaicProps {

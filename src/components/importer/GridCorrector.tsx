@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import { puzzleFromSolution } from '@/lib/generator'
 import { solve } from '@/lib/solver'
-import type { GridCellsResult } from '@/lib/imageProcessor'
+import type { GridCellsResult } from '@/lib/image'
 import { useTranslation } from '@/i18n/useTranslation'
 
 interface GridCorrectorProps {

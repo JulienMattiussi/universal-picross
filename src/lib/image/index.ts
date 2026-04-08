@@ -1,0 +1,5 @@
+export type { Point, GridCellsResult } from '@/lib/image/types'
+export { detectGridBounds, expandCornersToGridEdges } from '@/lib/image/gridBounds'
+export { detectGridStructureExtended } from '@/lib/image/gridDetection'
+export { extractGridCells } from '@/lib/image/cellExtraction'
+export { recognizeAllClueCells } from '@/lib/image/ocr'

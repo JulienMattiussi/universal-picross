@@ -30,23 +30,31 @@ L'application fonctionne sur mobile et desktop, peut être installée comme une 
 
 ```
 src/
-├── lib/               # Logique pure, zéro React
+├── lib/                   # Logique pure, zéro React
 │   ├── types.ts
-│   ├── clues.ts            # Calcul d'indices + getClueStatuses (completed/impossible)
+│   ├── clues.ts                # Calcul d'indices + getClueStatuses
 │   ├── solver.ts
-│   ├── generator.ts        # generatePuzzle (async, Web Worker)
-│   ├── generatorWorker.ts  # Worker dédié à la génération de puzzles
-│   ├── imageProcessor.ts
-│   ├── photoToPuzzle.ts       # Conversion image → grille booléenne + worker wrapper
-│   ├── photoToPuzzleWorker.ts # Worker : vérification unicité + ajustement pixels
-│   └── preloadOCR.ts       # Préchargement Tesseract pour mode offline
+│   ├── generator.ts            # generatePuzzle (async, Web Worker)
+│   ├── generatorWorker.ts      # Worker dédié à la génération
+│   ├── image/                  # Traitement d'image (modulaire)
+│   │   ├── types.ts            # Point, GridCellsResult, GridStructure, Band
+│   │   ├── profiles.ts         # Analyse luminosité, saturation, edges
+│   │   ├── canvas.ts           # Manipulation canvas, Otsu, normalisation
+│   │   ├── gridDetection.ts    # Détection de grille (dark, extended, bandes, hue)
+│   │   ├── gridBounds.ts       # Détection des bornes (dark + edge scan)
+│   │   ├── cellExtraction.ts   # Découpe des cases
+│   │   ├── ocr.ts              # Reconnaissance OCR Tesseract
+│   │   └── index.ts            # Ré-exports publics
+│   ├── photoToPuzzle.ts        # Conversion image → grille booléenne
+│   ├── photoToPuzzleWorker.ts  # Worker : unicité + ajustement pixels
+│   └── preloadOCR.ts           # Préchargement Tesseract offline
 ├── store/
 │   ├── gameStore.ts     # Zustand — état de jeu (puzzle, grid, status, cheated)
 │   ├── debugStore.ts    # Zustand — mode diagnostic (Ctrl+D)
-│   └── settingsStore.ts # Zustand — paramètres utilisateur (darkMode, offlineMode)
+│   └── settingsStore.ts # Zustand — paramètres (darkMode, offlineMode)
 ├── i18n/
 │   ├── types.ts         # Locale, TranslationKeys (contrat typé)
-│   ├── i18nStore.ts     # Zustand — langue courante + persistence localStorage
+│   ├── i18nStore.ts     # Zustand — langue + persistence localStorage
 │   ├── useTranslation.ts
 │   └── translations/    # fr.ts, en.ts, de.ts, it.ts, es.ts, index.ts
 ├── hooks/
@@ -95,6 +103,7 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - **Tesseract.js est lourd** (~15 MB avec les données de langue) : il doit rester en **import dynamique / lazy-load**, jamais importé statiquement.
 - **TypeScript strict** : `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly` sont activés. Ne pas désactiver ces options.
 - **Pas de dépendances inutiles** : préférer les solutions custom légères quand la complexité est faible (ex : i18n custom plutôt que i18next pour ~80 clés).
+- **Modules de traitement d'image** : la logique d'image est dans `src/lib/image/` (pas un seul fichier monolithique). Chaque module < 300 lignes. Les imports pointent vers `@/lib/image` (le barrel `index.ts`).
 
 ---
 
@@ -102,11 +111,13 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 
 ### Structure
 - `src/lib/` contient uniquement de la **logique pure** (fonctions, types, algorithmes) — zéro import React.
+- `src/lib/image/` contient le traitement d'image découpé en modules (profils, canvas, détection, extraction, OCR).
 - `src/store/` contient uniquement les stores Zustand.
 - `src/hooks/` contient uniquement des hooks React.
 - `src/i18n/` contient tout le système de traduction (types, store, hook, fichiers de traduction).
 - `src/components/` est organisé par domaine fonctionnel (`game/`, `ui/`, `importer/`, `photoToPuzzle/`…), pas par type technique.
-- Chaque composant est dans son propre fichier. Pas de fichier `index.ts` barrel sauf si explicitement demandé.
+- Chaque composant est dans son propre fichier. Pas de fichier `index.ts` barrel sauf pour les modules multi-fichiers (`image/`, `translations/`).
+- **Surveiller la taille des fichiers** : au-delà de ~300 lignes, envisager un découpage. Fichiers critiques à surveiller : `ImportPanel.tsx` (~285 lignes), `HomePage.tsx` (~210 lignes).
 
 ### Composants
 - Composants simples, unitaires, avec une seule responsabilité.
@@ -136,7 +147,7 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - Interpolation simple par `.replace('{var}', value)` au site d'appel.
 - La langue est persistée en `localStorage` (clé `picross-locale`).
 - **Toutes les strings UI passent par `t.xxx.yyy`** — pas de texte en dur dans les composants.
-- Les constantes définies au niveau module (ex : `MODES` dans `InputModeToggle`) qui contiennent des labels doivent être recalculées dans le corps du composant pour accéder au hook `useTranslation()`.
+- Les constantes définies au niveau module qui contiennent des labels doivent être recalculées dans le corps du composant pour accéder au hook `useTranslation()`.
 
 ### Thème, couleurs et dark mode
 - Le thème est centralisé dans **`src/theme.css`** via la directive `@theme` de Tailwind v4.
@@ -151,12 +162,12 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - Les couleurs `primary-*` (orange) restent des tokens Tailwind classiques (pas de remapping dark).
 - Le dark mode est persisté en `localStorage` (clé `picross-settings`), toggle dans la page Options.
 
-### Favicon et icône
+### Favicon, OG image et SEO
 - **`public/favicon.svg`** : grille picross 5×6 fond orange, forme U en blanc.
 - Le favicon est aussi affiché dans le header de `HomePage.tsx` via `<img src="/favicon.svg" />`.
 - La couleur de fond du favicon (`fill` sur le `<rect>`) doit rester cohérente avec `primary-600`.
-- Syntaxe SVG native pour la transparence : `stroke-opacity="0.2"` — ne pas utiliser `rgba()` (non supporté par le linter SVG VSCode).
-- **OG image** : `public/og-image.png` (1200×630) pour Discord, Twitter, etc. Meta tags dans `index.html`.
+- Syntaxe SVG native pour la transparence : `stroke-opacity="0.2"` — ne pas utiliser `rgba()`.
+- **OG image** : `public/og-image.png` (1200×630) pour Discord, Twitter, etc. Meta tags dans `index.html`. Après déploiement, remplacer `/og-image.png` par l'URL absolue pour une compatibilité maximale avec les crawlers.
 
 ### Style
 - **Prettier** est configuré (`.prettierrc`) : single quotes, no semi, trailing comma, printWidth 100.
@@ -168,86 +179,109 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - L'état de jeu passe **exclusivement** par `useGameStore` (Zustand).
 - Les paramètres utilisateur (darkMode, offlineMode) passent par `useSettingsStore` (persisté en localStorage).
 - La langue passe par `useI18nStore` (persisté en localStorage).
-- Les composants n'utilisent pas `useState` pour l'état de jeu — uniquement pour l'état local UI (ex: drag-over, phase d'import).
+- Les composants n'utilisent pas `useState` pour l'état de jeu — uniquement pour l'état local UI.
 - Les actions du store (`fillCell`, `markCell`, `clearCell`, `reset`…) sont exposées via le hook `useGame`.
+- **Attention aux closures** : dans les `setTimeout` ou callbacks asynchrones, lire le state depuis `useXxxStore.getState()` et non depuis la closure du render (la valeur peut être stale).
 
 ### Générateur
 - `generatePuzzle()` est **asynchrone** et tourne dans un **Web Worker** (`generatorWorker.ts`).
-- La boucle génère des grilles aléatoires et appelle `solve()` pour vérifier l'unicité de la solution — `solve()` étant synchrone et coûteux sur les grosses grilles (20×20), le Web Worker est indispensable pour ne pas geler le thread UI.
-- Accepte un `AbortSignal` : l'annulation appelle `worker.terminate()` qui tue le calcul instantanément.
+- La boucle génère des grilles aléatoires et appelle `solve()` pour vérifier l'unicité — `solve()` étant synchrone et coûteux sur les grosses grilles (20×20), le Web Worker est indispensable.
+- Accepte un `AbortSignal` : l'annulation appelle `worker.terminate()` instantanément.
 - HomePage affiche un spinner pendant la génération avec un bouton Annuler.
-- **Règle critique** : ne jamais remettre `solve()` ou la boucle de génération sur le thread principal — même avec `setTimeout` ou `await`, un `solve()` synchrone de plusieurs secondes gèle le navigateur et empêche l'UI de réagir (le clic Annuler n'est jamais traité).
+- **Règle critique** : ne jamais remettre `solve()` ou la boucle de génération sur le thread principal — même avec `setTimeout` ou `await`, un `solve()` synchrone de plusieurs secondes gèle le navigateur et empêche l'UI de réagir.
 
 ### Solveur
 - L'algorithme : **propagation de contraintes itérative** en premier, **backtracking** en fallback.
-- Le solveur tourne de façon synchrone — utilisé directement dans le thread principal pour la résolution à la demande (bouton "Résoudre") et dans les Web Workers pour la génération et la conversion photo→puzzle.
-- Quand le solveur est utilisé via le bouton, `cheated` est mis à `true` dans le store → l'animation de victoire affiche "Tricheur !" au lieu de "Bravo !".
+- Le solveur est synchrone — utilisé sur le thread principal (bouton "Résoudre") et dans les Web Workers (génération, photo→puzzle).
+- Quand utilisé via le bouton, `cheated = true` → victoire affiche "Tricheur !".
 
 ### Mode diagnostic
-- Activé / désactivé par **Ctrl+D** depuis n'importe où dans l'application.
-- État global dans `src/store/debugStore.ts` (Zustand).
-- Quand actif : chip `debug` affiché en position `fixed` top-right dans `App.tsx`.
-- Listener Ctrl+D enregistré une seule fois dans `App.tsx` via `useEffect`.
+- Activé / désactivé par **Ctrl+D**.
+- Chip `debug` en position `fixed` top-right dans `App.tsx`.
+- En mode debug, les fonctions de traitement d'image logguent dans la console du navigateur :
+  - `[bounds]` : détection des bornes de la grille (stratégie dark, edge scan, positions, consensus).
+  - `[grid]` : extraction des cases (isColor, stratégies de détection, dimensions, analyse de bandes).
+  - `[expand]` : expansion des coins (luminosité de référence, positions trouvées).
 
 ### Import image / OCR
-- **Détection de grille 100% Canvas 2D** : profils de noirceur (projections ligne/colonne), détection de lignes régulières. Aucune dépendance externe (pas d'OpenCV).
-- **Distinction N&B / Couleur** : `isColorImage()` mesure la saturation moyenne (HSL) sur la zone croppée (pas l'image complète). Seuil 0.15, pixels très sombres/clairs ignorés. Le type est affiché en badge "(N&B)" ou "(Color)" dans les phases d'import.
-  - **N&B** → `detectGridStructure` : lignes sombres uniquement (algorithme original, fiable).
-  - **Couleur** → `detectGridStructureExtended` : cascade dark → edge (transitions de luminosité) → light (lignes claires). Utilisé uniquement quand la zone croppée est détectée comme colorée.
-  - **Règle critique** : ne jamais utiliser les stratégies edge/light sur des images N&B — elles génèrent des faux positifs sur les rangées de cases remplies. La séparation N&B/couleur est le garde-fou.
-  - `detectGridBounds` (auto-détection sur image complète) utilise toujours `detectGridStructureDark` (dark uniquement) quel que soit le type — l'image complète contient trop de bruit (texte, UI) pour les stratégies agressives.
-- Tesseract.js est importé dynamiquement (`await import('tesseract.js')`).
-- **Détection automatique des bords** : à l'upload, `detectGridBounds()` analyse l'image complète et pré-positionne les coins dans `CornerSelector` via la prop `initialCorners`. L'utilisateur n'a qu'à ajuster et valider.
-- **Retry avec élargissement** : si `extractGridCells` échoue avec la sélection exacte, il retente automatiquement en élargissant la zone de +5px, +10px, +15px de chaque côté. Cela compense un cadrage serré qui coupe les lignes extérieures. Toujours utiliser des **marges en pixels absolus** (pas en pourcentage) car les traits de grille ont une épaisseur fixe (1-3px).
-- **Flux normal** (mode diagnostic désactivé) :
-  1. Upload → détection auto des bords → sélection des coins (pré-positionnés si détectés) → extraction → OCR avec barre de progression
-  2. Si le solveur trouve une solution → chargement direct du jeu
-  3. Si la grille est invalide → `GridCorrector` (toutes les cases simultanément, images + inputs)
-- **Flux diagnostic** (mode diagnostic activé) :
-  1. Sélection → mosaïque (`GridMosaic`) → OCR → `ClueValidator` (case par case)
-  2. `ClueValidator` affiche un avertissement si la grille n'est pas soluble
-- **Règle critique** : après injection des indices dans un puzzle importé, toujours appeler `solve(puzzle)` pour obtenir la vraie solution et l'affecter à `puzzle.solution`. Sans ça, `checkWin` compare contre une grille vide et la victoire n'est jamais détectée.
-- Le pipeline OCR est agnostique à la couleur : conversion en niveaux de gris (luminance) + seuillage Otsu adaptatif + inversion automatique fond clair/sombre. Fonctionne pour les picross colorés tant que le contraste est suffisant.
+
+#### Modules de traitement d'image (`src/lib/image/`)
+- **`profiles.ts`** : analyse de luminosité (grayscale, darkness, edge, saturation, lightness profiles) + détection N&B/couleur.
+- **`canvas.ts`** : manipulation canvas (crop, upscale, Otsu, normalisation, padding, suppression traits).
+- **`gridDetection.ts`** : toutes les stratégies de détection de grille :
+  - Dark (lignes sombres) — fiable pour N&B.
+  - Extended (saturation, edge, light) — fallback pour couleur.
+  - Bandes (`detectGridByBands`) — analyse pixel-par-pixel des alternances trait/case, la méthode la plus fiable pour les grilles couleur.
+  - Hue scan (`detectGridByHueScan`) — scan par séparateurs de luminosité.
+- **`gridBounds.ts`** : détection automatique des bornes de la grille sur l'image complète.
+- **`cellExtraction.ts`** : découpe des cases (intérieures + indices) en data URLs.
+- **`ocr.ts`** : reconnaissance Tesseract avec timeout (10s) et recréation du worker si bloqué.
+
+#### Distinction N&B / Couleur
+- `isColorImage()` mesure la saturation sur la zone croppée. Seuil 0.15, pixels très sombres/clairs ignorés.
+- **N&B** : `detectGridStructure` (dark uniquement) avec retry/élargissement +5/10/15px.
+- **Couleur** : cascade `detectGridByBands` → `detectGridByHueScan` → `detectGridStructureExtended` → fallback dark.
+- **Règle critique** : ne jamais utiliser edge/light/bandes sur des images N&B — faux positifs sur les rangées de cases remplies.
+
+#### Détection par analyse de bandes (grilles couleur)
+- `scanBands()` parcourt une ligne pixel par pixel et produit une séquence de bandes (largeur + luminosité) : ex: `4 28 4 28 4 28...` = traits 4px + cases 28px.
+- `detectGridByBands()` scanne 3 lignes parallèles par axe, identifie les bandes "case" (larges) vs "trait" (fins), et retourne les positions exactes.
+- `extractGridCells` utilise ces positions pour un découpage pixel-perfect — chaque case est découpée entre ses deux lignes de grille réelles, pas par division uniforme.
+- **En mode debug** : `debugBandAnalysis` affiche la séquence de largeurs de bandes en console.
+
+#### Détection automatique des bornes (`detectGridBounds`)
+- Stratégie 1 : `detectGridStructureDark` (lignes sombres, fiable pour N&B).
+- Stratégie 2 : `detectGridBoundsByEdgeScan` — scanne depuis les 4 bords de l'image vers l'intérieur sur 10 lignes parallèles. Groupe les positions de premier contraste par proximité (±10px). Pour `left`/`top` (direction indices), prend le groupe **le plus éloigné du bord** avec ≥2 membres (la grille est plus loin que le texte). Pour `right`/`bottom`, prend le groupe le plus éloigné du bord opposé.
+- **Problème connu** : le bord gauche et le haut sont souvent mal détectés car les indices (chiffres) créent des contrastes avant la grille. Le cadrage automatique est approximatif — l'utilisateur peut ajuster manuellement.
+
+#### Expansion des coins (`expandCornersToGridEdges`)
+- Depuis deux points cliqués à l'intérieur de cases, cherche les bords de la grille.
+- `findFirstEdge` (haut, gauche — direction indices) : s'arrête au premier trait fin (≤5px). Les chiffres collés aux traits font >5px → pas de dépassement.
+- `findLastEdge` (bas, droite — bord extérieur) : traverse tous les traits fins (≤15px) → s'arrête au dernier.
+- Luminosité de référence = moyenne 5×5 autour du point cliqué.
+- **Problème connu** : si la luminosité des cases est trop proche de celle de la zone d'indices (toutes quasi blanches), l'expansion peut déborder. Le cadrage par bandes corrige ensuite.
+
+#### OCR
+- Tesseract.js importé dynamiquement (`await import('tesseract.js')`).
+- **Timeout 10s par case** : si Tesseract bloque, le worker est **terminé et recréé** (pas juste un `Promise.race` — le worker bloqué empêcherait les appels suivants).
+- Pipeline par case : normalisation → suppression traits → rognage contenu → upscale → OCR.
+- `repairClueString` : sépare les chiffres collés (ex: "11" → "1 1" si max=5).
+
+#### Validation post-OCR
+- En mode debug : `ClueValidator` (case par case) → si non solvable → `GridCorrector`.
+- En mode normal : si solvable → jeu direct, sinon → `GridCorrector`.
+- `handleValidationComplete` vérifie la solvabilité avant de charger le puzzle. Si `solve()` retourne null → redirige vers `GridCorrector`.
 
 ### Photo vers puzzle
-- Flux séparé de l'import OCR, avec son propre composant `PhotoToPuzzlePanel` et sa logique dans `photoToPuzzle.ts`.
-- Pipeline : upload image → choix taille (5-20) → crop carré centré → resize NxN → niveaux de gris → seuil Otsu → grille booléenne → preview → vérification unicité (Web Worker) → jeu.
-- `imageToSolutionGrid()` : conversion image → `SolutionGrid`, tourne sur le thread principal (rapide pour ≤20×20).
-- `processPhotoToPuzzle()` : lance `photoToPuzzleWorker.ts` qui vérifie l'unicité via `solve()` et ajuste les pixels divergents (jusqu'à 50 tentatives). Accepte `AbortSignal`.
-- Si la solution n'est pas unique après ajustement → avertissement + "Jouer quand même".
-- Vérification de densité (< 10% ou > 90%) → erreur avant conversion.
-- `PixelPreview` : composant de prévisualisation de la grille en noir/blanc.
+- Flux séparé de l'import OCR, avec `PhotoToPuzzlePanel` et `photoToPuzzle.ts`.
+- Pipeline : choix source (image/caméra) → choix taille (5-20) → crop carré → resize NxN → Otsu → preview → unicité (Web Worker) → jeu.
+- `processPhotoToPuzzle()` lance un worker qui ajuste les pixels pour l'unicité (50 tentatives max).
+- `PixelPreview` : prévisualisation de la grille en noir/blanc.
 
 ### Mode hors-ligne
-- L'application est une **PWA** (`vite-plugin-pwa`) : tous les assets du build sont pré-cachés par le Service Worker.
-- **Le jeu fonctionne offline** nativement (génération, résolution, interface).
-- **L'import OCR nécessite un préchargement** : Tesseract.js télécharge ~15 MB de données (WASM + langue) depuis un CDN, stockées en IndexedDB par le navigateur.
-- Option **"Mode hors-ligne"** dans la page Options : toggle qui active le préchargement.
-- `preloadOCR()` dans `lib/preloadOCR.ts` : crée un worker Tesseract (provoque le téléchargement), puis le ferme. Le cache IndexedDB persiste.
-- `isOCRCached()` : vérifie la présence des données en IndexedDB via `idb-keyval`.
-- Au **démarrage** (`App.tsx`) : si `offlineMode` est activé et que le cache est vide, précharge silencieusement en arrière-plan.
-- Paramètre persisté en `localStorage` (clé `picross-settings`).
+- PWA (`vite-plugin-pwa`) : assets pré-cachés par le Service Worker.
+- Le jeu fonctionne offline nativement.
+- L'import OCR nécessite un préchargement (~15 MB) → option "Mode hors-ligne" dans Options.
+- `preloadOCR()` : crée un worker Tesseract (provoque le téléchargement), puis le ferme. Cache en IndexedDB.
+- Au démarrage : si `offlineMode` activé et cache vide, précharge silencieusement.
 
 ### Détection de victoire
-- `checkWin` dans `gameStore.ts` compare case par case contre `puzzle.solution`.
-- Une case qui _doit_ être vide peut rester `'unknown'` ou `'marked'` — seul `'filled'` est interdit.
-- La victoire est vérifiée à chaque `fillCell` et `applyGrid`.
-- Animation de victoire (`VictoryOverlay`) : confettis + texte "Bravo !" ou "Tricheur !" selon le flag `cheated`.
+- `checkWin` compare case par case contre `puzzle.solution`.
+- Cases vides : `'unknown'` ou `'marked'` acceptés — seul `'filled'` interdit.
+- Vérifiée à chaque `fillCell` et `applyGrid`.
+- Animation : confettis + "Bravo !" ou "Tricheur !".
 
 ### Tests
 - **Toute logique dans `src/lib/`** doit avoir des tests unitaires dans `tests/unit/`.
 - **Tout composant non trivial** doit avoir des tests dans `tests/component/`.
-- **Ne pas mocker la logique métier** dans les tests de composants — utiliser les vraies fonctions `lib/`.
-- Les tests e2e Playwright couvrent les parcours utilisateur complets (générer → jouer → résoudre).
-- Les stores Zustand sont testables directement via `useGameStore.getState()` / `useGameStore.setState()` — reset manuel dans `beforeEach`.
-- **Tests i18n** (`tests/unit/i18n.test.ts`) : vérifient que chaque langue a exactement les mêmes clés que la référence (fr) et qu'aucune valeur n'est vide.
-- **Web Workers en tests** : jsdom ne supporte pas les Web Workers. `generatePuzzle` utilise un worker, donc les tests mockent `Worker` avec `vi.stubGlobal('Worker', MockWorker)`. Le mock simule le worker de manière synchrone.
+- **Ne pas mocker la logique métier** dans les tests de composants.
+- **Tests i18n** : vérifient clés identiques dans toutes les langues + aucune valeur vide.
+- **Web Workers** : jsdom ne les supporte pas → mocker avec `vi.stubGlobal('Worker', MockWorker)`.
+- Les stores Zustand sont testables via `getState()` / `setState()` — reset dans `beforeEach`.
 
 ---
 
 ## Workflow obligatoire après chaque modification
-
-Après chaque session de travail (ajout de fonctionnalité, correction de bug, refactoring), toujours exécuter dans cet ordre :
 
 ```bash
 make format-check   # Vérifie le formatage Prettier

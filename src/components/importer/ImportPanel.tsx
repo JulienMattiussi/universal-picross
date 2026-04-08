@@ -12,7 +12,7 @@ import {
   recognizeAllClueCells,
   type GridCellsResult,
   type Point,
-} from '@/lib/imageProcessor'
+} from '@/lib/image'
 import { puzzleFromSolution } from '@/lib/generator'
 import { solve } from '@/lib/solver'
 import { useGame } from '@/hooks/useGame'
