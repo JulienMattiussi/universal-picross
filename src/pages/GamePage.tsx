@@ -1,14 +1,16 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import GameBoard from '@/components/game/GameBoard'
+import type { InputMode } from '@/components/game/GameGrid'
 import SolverPanel from '@/components/solver/SolverPanel'
 import Button from '@/components/ui/Button'
 import { useGame } from '@/hooks/useGame'
 import { useTimer } from '@/hooks/useTimer'
 
 export default function GamePage() {
-  const { puzzle, grid, status, fillCell, markCell, reset } = useGame()
+  const { puzzle, grid, status, fillCell, markCell, clearCell, reset } = useGame()
   const { formatted } = useTimer()
   const boardRef = useRef<HTMLDivElement>(null)
+  const [inputMode, setInputMode] = useState<InputMode>('fill')
 
   // Calcul de la taille de cellule selon l'espace disponible
   const cellSize = puzzle ? Math.max(20, Math.min(36, Math.floor(320 / puzzle.cols))) : 32
@@ -38,7 +40,80 @@ export default function GamePage() {
           cellSize={cellSize}
           onFill={fillCell}
           onMark={markCell}
+          onClear={clearCell}
+          inputMode={inputMode}
         />
+      </div>
+
+      {/* Toggle fill / mark / erase */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setInputMode('fill')}
+          className={[
+            'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer',
+            inputMode === 'fill'
+              ? 'bg-gray-800 text-white'
+              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+          ].join(' ')}
+        >
+          <span
+            className={[
+              'inline-block w-4 h-4 rounded-sm',
+              inputMode === 'fill' ? 'bg-white' : 'bg-gray-800',
+            ].join(' ')}
+          />
+          Remplir
+        </button>
+        <button
+          onClick={() => setInputMode('mark')}
+          className={[
+            'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer',
+            inputMode === 'mark'
+              ? 'bg-primary-500 text-white'
+              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+          ].join(' ')}
+        >
+          <svg viewBox="0 0 10 10" className="w-4 h-4">
+            <line
+              x1="1"
+              y1="1"
+              x2="9"
+              y2="9"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="9"
+              y1="1"
+              x2="1"
+              y2="9"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+          Marquer
+        </button>
+        <button
+          onClick={() => setInputMode('erase')}
+          className={[
+            'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer',
+            inputMode === 'erase'
+              ? 'bg-gray-500 text-white'
+              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+          ].join(' ')}
+        >
+          <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor">
+            <path
+              d="M3 8h10M6 5l-3 3 3 3M10 5l3 3-3 3"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Effacer
+        </button>
       </div>
 
       {/* Solveur */}

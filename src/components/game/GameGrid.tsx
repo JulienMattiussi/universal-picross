@@ -2,12 +2,16 @@ import { useRef } from 'react'
 import Cell from './Cell'
 import type { PlayGrid } from '@/lib/types'
 
+export type InputMode = 'fill' | 'mark' | 'erase'
+
 interface GameGridProps {
   grid: PlayGrid
   cellSize: number
   onFill: (row: number, col: number) => void
   onMark: (row: number, col: number) => void
+  onClear: (row: number, col: number) => void
   errorCells?: Set<string>
+  inputMode?: InputMode
 }
 
 export default function GameGrid({
@@ -15,13 +19,15 @@ export default function GameGrid({
   cellSize,
   onFill,
   onMark,
+  onClear,
   errorCells = new Set(),
+  inputMode = 'fill',
 }: GameGridProps) {
   const gridRef = useRef<HTMLDivElement>(null)
 
   // État du drag stocké en ref (pas de re-render nécessaire)
   const dragRef = useRef<{
-    action: 'fill' | 'unfill'
+    action: 'fill' | 'unfill' | 'mark' | 'unmark' | 'erase'
     visited: Set<string>
     origin: [number, number]
     active: boolean
@@ -41,15 +47,23 @@ export default function GameGrid({
     if (!dragRef.current) return
     const key = `${r},${c}`
     if (dragRef.current.visited.has(key)) return
-    if (grid[r][c] === 'marked') return
 
     const { action } = dragRef.current
-    if (action === 'fill' && grid[r][c] !== 'filled') {
+    if (action === 'fill' && grid[r][c] !== 'filled' && grid[r][c] !== 'marked') {
       dragRef.current.visited.add(key)
       onFill(r, c)
     } else if (action === 'unfill' && grid[r][c] === 'filled') {
       dragRef.current.visited.add(key)
       onFill(r, c)
+    } else if (action === 'mark' && grid[r][c] !== 'marked' && grid[r][c] !== 'filled') {
+      dragRef.current.visited.add(key)
+      onMark(r, c)
+    } else if (action === 'unmark' && grid[r][c] === 'marked') {
+      dragRef.current.visited.add(key)
+      onMark(r, c)
+    } else if (action === 'erase' && grid[r][c] !== 'unknown') {
+      dragRef.current.visited.add(key)
+      onClear(r, c)
     }
   }
 
@@ -69,14 +83,28 @@ export default function GameGrid({
     e.preventDefault()
     gridRef.current?.setPointerCapture(e.pointerId)
 
-    const action = grid[r][c] === 'filled' ? 'unfill' : 'fill'
+    let action: 'fill' | 'unfill' | 'mark' | 'unmark' | 'erase'
+    if (inputMode === 'erase') {
+      action = 'erase'
+    } else if (inputMode === 'mark') {
+      action = grid[r][c] === 'marked' ? 'unmark' : 'mark'
+    } else {
+      action = grid[r][c] === 'filled' ? 'unfill' : 'fill'
+    }
     dragRef.current = { action, visited: new Set(), origin: [r, c], active: false }
 
-    longPressRef.current = setTimeout(() => {
-      longPressRef.current = null
-      dragRef.current = null
-      onMark(r, c)
-    }, 400)
+    // Long-press : pas de comportement spécial en mode erase
+    if (inputMode !== 'erase') {
+      longPressRef.current = setTimeout(() => {
+        longPressRef.current = null
+        dragRef.current = null
+        if (inputMode === 'mark') {
+          onFill(r, c)
+        } else {
+          onMark(r, c)
+        }
+      }, 400)
+    }
   }
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -101,9 +129,15 @@ export default function GameGrid({
   const handlePointerUp = () => {
     cancelLongPress()
     if (dragRef.current && !dragRef.current.active) {
-      // Simple clic : toggle normal
+      // Simple tap : action selon le mode actif
       const [r, c] = dragRef.current.origin
-      if (grid[r][c] !== 'marked') onFill(r, c)
+      if (inputMode === 'erase') {
+        onClear(r, c)
+      } else if (inputMode === 'mark') {
+        onMark(r, c)
+      } else {
+        if (grid[r][c] !== 'marked') onFill(r, c)
+      }
     }
     dragRef.current = null
   }

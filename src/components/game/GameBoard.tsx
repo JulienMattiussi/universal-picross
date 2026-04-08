@@ -1,4 +1,4 @@
-import GameGrid from './GameGrid'
+import GameGrid, { type InputMode } from './GameGrid'
 import ClueList from './ClueList'
 import { getClueStatuses } from '@/lib/clues'
 import type { PicrossPuzzle, PlayGrid } from '@/lib/types'
@@ -9,7 +9,9 @@ interface GameBoardProps {
   cellSize?: number
   onFill: (row: number, col: number) => void
   onMark: (row: number, col: number) => void
+  onClear: (row: number, col: number) => void
   errorCells?: Set<string>
+  inputMode?: InputMode
 }
 
 export default function GameBoard({
@@ -18,7 +20,9 @@ export default function GameBoard({
   cellSize = 32,
   onFill,
   onMark,
+  onClear,
   errorCells,
+  inputMode,
 }: GameBoardProps) {
   const maxRowClueCount = Math.max(...puzzle.clues.rows.map((c) => c.length))
   const maxColClueCount = Math.max(...puzzle.clues.cols.map((c) => c.length))
@@ -67,7 +71,9 @@ export default function GameBoard({
           cellSize={cellSize}
           onFill={onFill}
           onMark={onMark}
+          onClear={onClear}
           errorCells={errorCells}
+          inputMode={inputMode}
         />
       </div>
     </div>

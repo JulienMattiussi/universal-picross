@@ -11,6 +11,7 @@ interface GameStore {
   loadPuzzle: (puzzle: PicrossPuzzle) => void
   fillCell: (row: number, col: number) => void
   markCell: (row: number, col: number) => void
+  clearCell: (row: number, col: number) => void
   applyGrid: (grid: PlayGrid) => void
   reset: () => void
   setStatus: (status: GameStatus) => void
@@ -68,6 +69,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     newGrid[row][col] =
       current === 'marked' ? 'unknown' : current === 'filled' ? 'filled' : 'marked'
 
+    set({ grid: newGrid })
+  },
+
+  clearCell: (row, col) => {
+    const { grid, puzzle, status } = get()
+    if (status !== 'playing' || !puzzle) return
+    if (grid[row][col] === 'unknown') return
+
+    const newGrid = grid.map((r) => [...r]) as PlayGrid
+    newGrid[row][col] = 'unknown'
     set({ grid: newGrid })
   },
 

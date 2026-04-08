@@ -10,9 +10,21 @@ export function useGame() {
   const loadPuzzle = useGameStore((s) => s.loadPuzzle)
   const fillCell = useGameStore((s) => s.fillCell)
   const markCell = useGameStore((s) => s.markCell)
+  const clearCell = useGameStore((s) => s.clearCell)
   const applyGrid = useGameStore((s) => s.applyGrid)
   const reset = useGameStore((s) => s.reset)
   const setStatus = useGameStore((s) => s.setStatus)
 
-  return { puzzle, grid, status, loadPuzzle, fillCell, markCell, applyGrid, reset, setStatus }
+  return {
+    puzzle,
+    grid,
+    status,
+    loadPuzzle,
+    fillCell,
+    markCell,
+    clearCell,
+    applyGrid,
+    reset,
+    setStatus,
+  }
 }
