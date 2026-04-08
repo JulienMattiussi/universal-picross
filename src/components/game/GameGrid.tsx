@@ -153,7 +153,7 @@ export default function GameGrid({
   return (
     <div
       ref={gridRef}
-      className="border-2 border-gray-700 inline-block touch-none select-none cursor-crosshair"
+      className="border-2 border-brd-heavy inline-block touch-none select-none cursor-crosshair"
       role="grid"
       aria-label="Grille de picross"
       onPointerDown={handlePointerDown}

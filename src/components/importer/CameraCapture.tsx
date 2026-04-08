@@ -23,7 +23,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       {isStreaming ? (
         <>

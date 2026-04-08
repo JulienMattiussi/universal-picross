@@ -12,7 +12,7 @@ export default function PixelPreview({ grid, maxSize = 280 }: PixelPreviewProps)
 
   return (
     <div
-      className="inline-grid border-2 border-gray-700 rounded"
+      className="inline-grid border-2 border-brd-heavy rounded"
       style={{
         gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
         gridTemplateRows: `repeat(${rows}, ${cellSize}px)`,
@@ -22,7 +22,7 @@ export default function PixelPreview({ grid, maxSize = 280 }: PixelPreviewProps)
         row.map((filled, c) => (
           <div
             key={`${r}-${c}`}
-            className={filled ? 'bg-gray-800' : 'bg-white'}
+            className={filled ? 'bg-cell-filled' : 'bg-cell-empty'}
             style={{ width: cellSize, height: cellSize }}
           />
         )),

@@ -4,6 +4,7 @@ const STORAGE_KEY = 'picross-settings'
 
 interface Settings {
   offlineMode: boolean
+  darkMode: boolean
 }
 
 function load(): Settings {
@@ -13,7 +14,7 @@ function load(): Settings {
   } catch {
     /* ignore */
   }
-  return { offlineMode: false }
+  return { offlineMode: false, darkMode: false }
 }
 
 function save(settings: Settings) {
@@ -22,13 +23,30 @@ function save(settings: Settings) {
 
 interface SettingsStore extends Settings {
   setOfflineMode: (enabled: boolean) => void
+  setDarkMode: (enabled: boolean) => void
 }
 
-export const useSettingsStore = create<SettingsStore>((set, get) => ({
-  ...load(),
+function applyDarkClass(enabled: boolean) {
+  document.documentElement.classList.toggle('dark', enabled)
+}
 
-  setOfflineMode: (enabled) => {
-    set({ offlineMode: enabled })
-    save({ ...get(), offlineMode: enabled })
-  },
-}))
+export const useSettingsStore = create<SettingsStore>((set, get) => {
+  // Applique le dark mode au chargement
+  const initial = load()
+  applyDarkClass(initial.darkMode)
+
+  return {
+    ...initial,
+
+    setOfflineMode: (enabled) => {
+      set({ offlineMode: enabled })
+      save({ ...get(), offlineMode: enabled })
+    },
+
+    setDarkMode: (enabled) => {
+      applyDarkClass(enabled)
+      set({ darkMode: enabled })
+      save({ ...get(), darkMode: enabled })
+    },
+  }
+})

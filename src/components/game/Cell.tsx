@@ -11,10 +11,10 @@ interface CellProps {
 }
 
 const stateClasses: Record<CellState, string> = {
-  unknown: 'bg-white hover:bg-primary-50',
-  filled: 'bg-gray-800',
-  empty: 'bg-white',
-  marked: 'bg-white',
+  unknown: 'bg-cell-empty hover:bg-primary-50',
+  filled: 'bg-cell-filled',
+  empty: 'bg-cell-empty',
+  marked: 'bg-cell-empty',
 }
 
 export default function Cell({
@@ -27,9 +27,9 @@ export default function Cell({
   thickLeft = false,
 }: CellProps) {
   const borderClasses = [
-    'border border-gray-300',
-    thickLeft ? 'border-l-2 border-l-gray-500' : '',
-    thickTop ? 'border-t-2 border-t-gray-500' : '',
+    'border border-brd-strong',
+    thickLeft ? 'border-l-2 border-l-brd-heavy' : '',
+    thickTop ? 'border-t-2 border-t-brd-heavy' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -42,7 +42,7 @@ export default function Cell({
         'relative flex items-center justify-center',
         stateClasses[state],
         borderClasses,
-        isError ? 'bg-red-200!' : '',
+        isError ? 'bg-error-cell!' : '',
       ]
         .filter(Boolean)
         .join(' ')}

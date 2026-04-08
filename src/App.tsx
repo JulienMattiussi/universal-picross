@@ -64,7 +64,7 @@ export default function App() {
       {page === 'options' && <OptionsPage onBack={goHome} />}
 
       {debug && (
-        <div className="fixed top-3 right-3 bg-gray-800 text-white text-xs font-mono px-2 py-0.5 rounded-full select-none pointer-events-none">
+        <div className="fixed top-3 right-3 bg-surface-inverse text-txt-inverse text-xs font-mono px-2 py-0.5 rounded-full select-none pointer-events-none">
           debug
         </div>
       )}

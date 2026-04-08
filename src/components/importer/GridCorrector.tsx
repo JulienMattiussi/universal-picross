@@ -67,19 +67,19 @@ export default function GridCorrector({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+      <div className="text-sm text-warn-text bg-warn-bg border border-warn-border rounded-lg px-3 py-2">
         {t.corrector.noSolution}
       </div>
 
       {/* Colonnes */}
       <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+        <p className="text-xs font-medium text-txt-tertiary uppercase tracking-wide mb-2">
           {t.corrector.columns} ({nCols})
         </p>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {Array.from({ length: nCols }, (_, i) => (
             <div key={i} className="flex flex-col items-center gap-1 shrink-0">
-              <div className="w-14 h-14 border border-gray-200 rounded bg-gray-50 overflow-hidden">
+              <div className="w-14 h-14 border border-brd rounded bg-surface-secondary overflow-hidden">
                 <img
                   src={colClueCells[i]}
                   alt={`${t.corrector.columns} ${i + 1}`}
@@ -95,7 +95,7 @@ export default function GridCorrector({
                 type="text"
                 value={colValues[i] ?? ''}
                 onChange={(e) => updateCol(i, e.target.value)}
-                className="w-14 border border-gray-300 rounded px-1 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-14 border border-brd-strong rounded px-1 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="1 2"
               />
             </div>
@@ -105,13 +105,13 @@ export default function GridCorrector({
 
       {/* Lignes */}
       <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+        <p className="text-xs font-medium text-txt-tertiary uppercase tracking-wide mb-2">
           {t.corrector.rows} ({nRows})
         </p>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {Array.from({ length: nRows }, (_, i) => (
             <div key={i} className="flex flex-col items-center gap-1 shrink-0">
-              <div className="w-14 h-14 border border-gray-200 rounded bg-gray-50 overflow-hidden">
+              <div className="w-14 h-14 border border-brd rounded bg-surface-secondary overflow-hidden">
                 <img
                   src={rowClueCells[i]}
                   alt={`${t.corrector.rows} ${i + 1}`}
@@ -127,7 +127,7 @@ export default function GridCorrector({
                 type="text"
                 value={rowValues[i] ?? ''}
                 onChange={(e) => updateRow(i, e.target.value)}
-                className="w-14 border border-gray-300 rounded px-1 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-14 border border-brd-strong rounded px-1 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="1 2"
               />
             </div>
@@ -135,7 +135,7 @@ export default function GridCorrector({
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       <div className="flex gap-2">
         <Button variant="secondary" onClick={onBack}>

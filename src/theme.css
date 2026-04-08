@@ -17,6 +17,80 @@
   --color-primary-800: #9a3412;
   --color-primary-900: #7c2d12;
 
-  /* Couleur de fond du site */
-  --color-surface: #fffbf7;
+  /* Tokens sémantiques — light par défaut */
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-tertiary: var(--surface-tertiary);
+  --color-surface-inverse: var(--surface-inverse);
+  --color-txt: var(--txt);
+  --color-txt-secondary: var(--txt-secondary);
+  --color-txt-tertiary: var(--txt-tertiary);
+  --color-txt-muted: var(--txt-muted);
+  --color-txt-disabled: var(--txt-disabled);
+  --color-txt-inverse: var(--txt-inverse);
+  --color-brd: var(--brd);
+  --color-brd-strong: var(--brd-strong);
+  --color-brd-heavy: var(--brd-heavy);
+  --color-cell-filled: var(--cell-filled);
+  --color-cell-empty: var(--cell-empty);
+  --color-toggle-off: var(--toggle-off);
+  --color-status-success: var(--status-success);
+  --color-status-error: var(--status-error);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-border: var(--warn-border);
+  --color-warn-text: var(--warn-text);
+  --color-error-cell: var(--error-cell);
+}
+
+:root {
+  --surface: #fffbf7;
+  --surface-card: #ffffff;
+  --surface-secondary: #f9fafb;
+  --surface-tertiary: #f3f4f6;
+  --surface-inverse: #1f2937;
+  --txt: #111827;
+  --txt-secondary: #4b5563;
+  --txt-tertiary: #6b7280;
+  --txt-muted: #9ca3af;
+  --txt-disabled: #d1d5db;
+  --txt-inverse: #ffffff;
+  --brd: #e5e7eb;
+  --brd-strong: #d1d5db;
+  --brd-heavy: #374151;
+  --cell-filled: #1f2937;
+  --cell-empty: #ffffff;
+  --toggle-off: #d1d5db;
+  --status-success: #16a34a;
+  --status-error: #ef4444;
+  --warn-bg: #fffbeb;
+  --warn-border: #fde68a;
+  --warn-text: #b45309;
+  --error-cell: #fecaca;
+}
+
+.dark {
+  --surface: #111827;
+  --surface-card: #1f2937;
+  --surface-secondary: #283548;
+  --surface-tertiary: #374151;
+  --surface-inverse: #f9fafb;
+  --txt: #f9fafb;
+  --txt-secondary: #d1d5db;
+  --txt-tertiary: #9ca3af;
+  --txt-muted: #6b7280;
+  --txt-disabled: #4b5563;
+  --txt-inverse: #111827;
+  --brd: #374151;
+  --brd-strong: #4b5563;
+  --brd-heavy: #d1d5db;
+  --cell-filled: #f9fafb;
+  --cell-empty: #1f2937;
+  --toggle-off: #4b5563;
+  --status-success: #4ade80;
+  --status-error: #f87171;
+  --warn-bg: #422006;
+  --warn-border: #92400e;
+  --warn-text: #fbbf24;
+  --error-cell: #7f1d1d;
 }

@@ -72,7 +72,7 @@ export default function VictoryOverlay({ cheated }: VictoryOverlayProps) {
         <span
           className={[
             'text-5xl font-extrabold drop-shadow-lg',
-            cheated ? 'text-red-500' : 'text-primary-500',
+            cheated ? 'text-status-error' : 'text-primary-500',
           ].join(' ')}
         >
           {cheated ? t.game.cheater : t.game.bravo}

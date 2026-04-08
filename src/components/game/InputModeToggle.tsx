@@ -6,14 +6,15 @@ interface InputModeToggleProps {
   onChange: (mode: InputMode) => void
 }
 
-const INACTIVE = 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+const INACTIVE =
+  'bg-surface-card text-txt-secondary border border-brd-strong hover:bg-surface-secondary'
 const BASE =
   'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer'
 
 const ACTIVE_CLASSES: Record<InputMode, string> = {
-  fill: 'bg-gray-800 text-white',
-  mark: 'bg-primary-500 text-white',
-  erase: 'bg-gray-500 text-white',
+  fill: 'bg-surface-inverse text-txt-inverse',
+  mark: 'bg-primary-500 text-txt-inverse',
+  erase: 'bg-txt-tertiary text-txt-inverse',
 }
 
 const ICONS: Record<InputMode, React.ReactNode> = {
@@ -76,7 +77,7 @@ export default function InputModeToggle({ value, onChange }: InputModeToggleProp
               <span
                 className={[
                   'inline-block w-4 h-4 rounded-sm',
-                  active ? 'bg-white' : 'bg-gray-800',
+                  active ? 'bg-txt-inverse' : 'bg-surface-inverse',
                 ].join(' ')}
               />
             ) : (

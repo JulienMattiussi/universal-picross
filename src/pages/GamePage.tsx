@@ -64,7 +64,7 @@ export default function GamePage({ importMode, onBack }: GamePageProps) {
       <div className="w-full max-w-2xl">
         <button
           onClick={onBack}
-          className="text-sm text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+          className="text-sm text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer"
         >
           ← {t.common.back}
         </button>
@@ -89,10 +89,12 @@ export default function GamePage({ importMode, onBack }: GamePageProps) {
 
           {/* Barre supérieure */}
           <div className="flex items-center justify-between w-full max-w-2xl">
-            <span className="font-mono text-lg text-gray-600">{formatted}</span>
+            <span className="font-mono text-lg text-txt-secondary">{formatted}</span>
             {status === 'solved' && (
               <span
-                className={cheated ? 'text-red-500 font-semibold' : 'text-green-600 font-semibold'}
+                className={
+                  cheated ? 'text-status-error font-semibold' : 'text-status-success font-semibold'
+                }
               >
                 {cheated ? t.game.cheater : t.game.bravo}
               </span>

@@ -3,9 +3,9 @@
 ## Description du projet
 
 Application web de **picross / nonogramme** entièrement front-end, sans backend.
-L'utilisateur peut générer des puzzles, jouer manuellement, importer un puzzle depuis une image ou une photo, et demander une résolution automatique.
+L'utilisateur peut générer des puzzles, jouer manuellement, importer un puzzle depuis une image ou une photo, transformer n'importe quelle photo en puzzle jouable, et demander une résolution automatique.
 
-L'application fonctionne sur mobile et desktop, peut être installée comme une PWA, et supporte le mode hors-ligne.
+L'application fonctionne sur mobile et desktop, peut être installée comme une PWA, supporte le mode hors-ligne et le dark mode.
 
 ---
 
@@ -32,16 +32,18 @@ L'application fonctionne sur mobile et desktop, peut être installée comme une 
 src/
 ├── lib/               # Logique pure, zéro React
 │   ├── types.ts
-│   ├── clues.ts       # Calcul d'indices + getClueStatuses (completed/impossible)
+│   ├── clues.ts            # Calcul d'indices + getClueStatuses (completed/impossible)
 │   ├── solver.ts
-│   ├── generator.ts       # generatePuzzle (async, Web Worker)
-│   ├── generatorWorker.ts # Worker dédié à la génération de puzzles
+│   ├── generator.ts        # generatePuzzle (async, Web Worker)
+│   ├── generatorWorker.ts  # Worker dédié à la génération de puzzles
 │   ├── imageProcessor.ts
-│   └── preloadOCR.ts  # Préchargement Tesseract pour mode offline
+│   ├── photoToPuzzle.ts       # Conversion image → grille booléenne + worker wrapper
+│   ├── photoToPuzzleWorker.ts # Worker : vérification unicité + ajustement pixels
+│   └── preloadOCR.ts       # Préchargement Tesseract pour mode offline
 ├── store/
 │   ├── gameStore.ts     # Zustand — état de jeu (puzzle, grid, status, cheated)
 │   ├── debugStore.ts    # Zustand — mode diagnostic (Ctrl+D)
-│   └── settingsStore.ts # Zustand — paramètres utilisateur (offlineMode)
+│   └── settingsStore.ts # Zustand — paramètres utilisateur (darkMode, offlineMode)
 ├── i18n/
 │   ├── types.ts         # Locale, TranslationKeys (contrat typé)
 │   ├── i18nStore.ts     # Zustand — langue courante + persistence localStorage
@@ -56,14 +58,15 @@ src/
 │   ├── game/            # Cell, ClueCell, ClueList, GameGrid, GameBoard,
 │   │                    # InputModeToggle, VictoryOverlay
 │   ├── solver/          # SolverPanel
-│   └── importer/        # ImageUploader, CameraCapture, CornerSelector, GridMosaic,
-│                        # GridCorrector, ClueValidator, ImportPanel
+│   ├── importer/        # ImageUploader, CameraCapture, CornerSelector, GridMosaic,
+│   │                    # GridCorrector, ClueValidator, ImportPanel
+│   └── photoToPuzzle/   # PhotoToPuzzlePanel, PixelPreview
 └── pages/
-    ├── HomePage.tsx     # 3 actions : image, photo, génération
-    ├── GamePage.tsx     # Import + jeu, breadcrumb retour
-    └── OptionsPage.tsx  # Langue, mode offline
+    ├── HomePage.tsx     # 4 actions : image, photo, photo→puzzle, génération
+    ├── GamePage.tsx     # Import/photo→puzzle + jeu, breadcrumb retour
+    └── OptionsPage.tsx  # Langue, dark mode, mode offline
 tests/
-├── unit/          # Vitest — logique pure
+├── unit/          # Vitest — logique pure + i18n
 ├── component/     # Vitest + Testing Library
 └── e2e/           # Playwright
 ```
@@ -74,10 +77,11 @@ tests/
 
 L'application utilise une **navigation par état** (pas de router), gérée dans `App.tsx` :
 - `page: 'home' | 'game' | 'options'`
-- `importMode: 'image' | 'camera' | undefined` pour distinguer import vs génération
+- `importMode: 'image' | 'camera' | 'photo' | undefined` pour distinguer import OCR, photo→puzzle, et génération.
 - Les callbacks `onImport`, `onGenerated`, `onBack`, `onOptions` relient les pages.
 - **Important** : quand on navigue vers le jeu en mode import, le store de jeu est reset (`status: 'idle'`) pour éviter que l'ImportPanel soit court-circuité par un puzzle précédent encore en mémoire.
-- GamePage utilise un état local `importDone` pour savoir quand passer de l'ImportPanel au jeu.
+- GamePage utilise un état local `importDone` pour savoir quand passer du panel d'import au jeu.
+- GamePage route vers `ImportPanel` (modes `image`/`camera`) ou `PhotoToPuzzlePanel` (mode `photo`).
 
 ---
 
@@ -101,7 +105,7 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - `src/store/` contient uniquement les stores Zustand.
 - `src/hooks/` contient uniquement des hooks React.
 - `src/i18n/` contient tout le système de traduction (types, store, hook, fichiers de traduction).
-- `src/components/` est organisé par domaine fonctionnel (`game/`, `ui/`, `importer/`…), pas par type technique.
+- `src/components/` est organisé par domaine fonctionnel (`game/`, `ui/`, `importer/`, `photoToPuzzle/`…), pas par type technique.
 - Chaque composant est dans son propre fichier. Pas de fichier `index.ts` barrel sauf si explicitement demandé.
 
 ### Composants
@@ -126,35 +130,33 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 ### Internationalisation (i18n)
 - **Solution custom sans dépendance** : Zustand store + fichiers de traduction typés.
 - 5 langues : français (défaut), anglais, allemand, italien, espagnol.
-- ~80 clés organisées par namespace (`home`, `game`, `solver`, `import`, `corner`, etc.).
+- ~90 clés organisées par namespace (`home`, `game`, `solver`, `import`, `corner`, `photoToPuzzle`, etc.).
 - `TranslationKeys` dans `i18n/types.ts` est le contrat — TypeScript garantit la structure de chaque fichier de traduction, et les tests unitaires vérifient l'absence de valeurs vides.
 - `useTranslation()` retourne l'objet typé `t` — autocomplétion complète, pas de clés string.
 - Interpolation simple par `.replace('{var}', value)` au site d'appel.
 - La langue est persistée en `localStorage` (clé `picross-locale`).
-- **Toutes les strings UI passent par `t.xxx.yyy`** — pas de texte français en dur dans les composants.
+- **Toutes les strings UI passent par `t.xxx.yyy`** — pas de texte en dur dans les composants.
 - Les constantes définies au niveau module (ex : `MODES` dans `InputModeToggle`) qui contiennent des labels doivent être recalculées dans le corps du composant pour accéder au hook `useTranslation()`.
 
-### Tests
-- **Toute logique dans `src/lib/`** doit avoir des tests unitaires dans `tests/unit/`.
-- **Tout composant non trivial** doit avoir des tests dans `tests/component/`.
-- **Ne pas mocker la logique métier** dans les tests de composants — utiliser les vraies fonctions `lib/`.
-- Les tests e2e Playwright couvrent les parcours utilisateur complets (générer → jouer → résoudre).
-- Les stores Zustand sont testables directement via `useGameStore.getState()` / `useGameStore.setState()` — reset manuel dans `beforeEach`.
-- **Tests i18n** (`tests/unit/i18n.test.ts`) : vérifient que chaque langue a exactement les mêmes clés que la référence (fr) et qu'aucune valeur n'est vide.
-- **Web Workers en tests** : jsdom ne supporte pas les Web Workers. `generatePuzzle` utilise un worker, donc les tests mocker `Worker` avec `vi.stubGlobal('Worker', MockWorker)`. Le mock simule le worker de manière synchrone.
-
-### Thème et couleurs
+### Thème, couleurs et dark mode
 - Le thème est centralisé dans **`src/theme.css`** via la directive `@theme` de Tailwind v4.
-- Toutes les couleurs UI utilisent le token **`primary-*`** (50 → 900) — jamais de couleur Tailwind en dur (`indigo-*`, `orange-*`, etc.) dans les composants.
-- Pour changer la palette de couleurs, modifier uniquement `src/theme.css`.
-- Fond de page : `--color-surface` défini dans `theme.css`, appliqué sur `body` dans `index.css`.
-- Couleur actuelle : orange chaud (`primary-500` = `#f97316`, `primary-600` = `#ea580c`).
+- **Dark mode** : implémenté via des **CSS custom properties sémantiques** définies dans `:root` (light) et `.dark` (dark) dans `theme.css`. La classe `.dark` est appliquée sur `<html>` par `settingsStore`.
+- **Règle critique** : ne jamais utiliser de couleurs Tailwind en dur dans les composants (`bg-white`, `text-gray-700`, `bg-gray-100`, etc.). Toujours utiliser les **tokens sémantiques** :
+  - Surfaces : `bg-surface`, `bg-surface-card`, `bg-surface-secondary`, `bg-surface-tertiary`, `bg-surface-inverse`
+  - Texte : `text-txt`, `text-txt-secondary`, `text-txt-tertiary`, `text-txt-muted`, `text-txt-disabled`, `text-txt-inverse`
+  - Bordures : `border-brd`, `border-brd-strong`, `border-brd-heavy`
+  - Jeu : `bg-cell-filled`, `bg-cell-empty`
+  - Statuts : `text-status-success`, `text-status-error`, `text-warn-text`, `bg-warn-bg`, `border-warn-border`, `bg-error-cell`
+  - UI : `bg-toggle-off`
+- Les couleurs `primary-*` (orange) restent des tokens Tailwind classiques (pas de remapping dark).
+- Le dark mode est persisté en `localStorage` (clé `picross-settings`), toggle dans la page Options.
 
 ### Favicon et icône
 - **`public/favicon.svg`** : grille picross 5×6 fond orange, forme U en blanc.
 - Le favicon est aussi affiché dans le header de `HomePage.tsx` via `<img src="/favicon.svg" />`.
 - La couleur de fond du favicon (`fill` sur le `<rect>`) doit rester cohérente avec `primary-600`.
 - Syntaxe SVG native pour la transparence : `stroke-opacity="0.2"` — ne pas utiliser `rgba()` (non supporté par le linter SVG VSCode).
+- **OG image** : `public/og-image.png` (1200×630) pour Discord, Twitter, etc. Meta tags dans `index.html`.
 
 ### Style
 - **Prettier** est configuré (`.prettierrc`) : single quotes, no semi, trailing comma, printWidth 100.
@@ -164,7 +166,7 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 
 ### État global
 - L'état de jeu passe **exclusivement** par `useGameStore` (Zustand).
-- Les paramètres utilisateur (mode offline) passent par `useSettingsStore` (persisté en localStorage).
+- Les paramètres utilisateur (darkMode, offlineMode) passent par `useSettingsStore` (persisté en localStorage).
 - La langue passe par `useI18nStore` (persisté en localStorage).
 - Les composants n'utilisent pas `useState` pour l'état de jeu — uniquement pour l'état local UI (ex: drag-over, phase d'import).
 - Les actions du store (`fillCell`, `markCell`, `clearCell`, `reset`…) sont exposées via le hook `useGame`.
@@ -178,7 +180,7 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 
 ### Solveur
 - L'algorithme : **propagation de contraintes itérative** en premier, **backtracking** en fallback.
-- Le solveur tourne de façon synchrone — utilisé directement dans le thread principal pour la résolution à la demande (bouton "Résoudre") et dans le Web Worker pour la génération.
+- Le solveur tourne de façon synchrone — utilisé directement dans le thread principal pour la résolution à la demande (bouton "Résoudre") et dans les Web Workers pour la génération et la conversion photo→puzzle.
 - Quand le solveur est utilisé via le bouton, `cheated` est mis à `true` dans le store → l'animation de victoire affiche "Tricheur !" au lieu de "Bravo !".
 
 ### Mode diagnostic
@@ -202,6 +204,15 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - **Règle critique** : après injection des indices dans un puzzle importé, toujours appeler `solve(puzzle)` pour obtenir la vraie solution et l'affecter à `puzzle.solution`. Sans ça, `checkWin` compare contre une grille vide et la victoire n'est jamais détectée.
 - Le pipeline OCR est agnostique à la couleur : conversion en niveaux de gris (luminance) + seuillage Otsu adaptatif + inversion automatique fond clair/sombre. Fonctionne pour les picross colorés tant que le contraste est suffisant.
 
+### Photo vers puzzle
+- Flux séparé de l'import OCR, avec son propre composant `PhotoToPuzzlePanel` et sa logique dans `photoToPuzzle.ts`.
+- Pipeline : upload image → choix taille (5-20) → crop carré centré → resize NxN → niveaux de gris → seuil Otsu → grille booléenne → preview → vérification unicité (Web Worker) → jeu.
+- `imageToSolutionGrid()` : conversion image → `SolutionGrid`, tourne sur le thread principal (rapide pour ≤20×20).
+- `processPhotoToPuzzle()` : lance `photoToPuzzleWorker.ts` qui vérifie l'unicité via `solve()` et ajuste les pixels divergents (jusqu'à 50 tentatives). Accepte `AbortSignal`.
+- Si la solution n'est pas unique après ajustement → avertissement + "Jouer quand même".
+- Vérification de densité (< 10% ou > 90%) → erreur avant conversion.
+- `PixelPreview` : composant de prévisualisation de la grille en noir/blanc.
+
 ### Mode hors-ligne
 - L'application est une **PWA** (`vite-plugin-pwa`) : tous les assets du build sont pré-cachés par le Service Worker.
 - **Le jeu fonctionne offline** nativement (génération, résolution, interface).
@@ -217,6 +228,15 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - Une case qui _doit_ être vide peut rester `'unknown'` ou `'marked'` — seul `'filled'` est interdit.
 - La victoire est vérifiée à chaque `fillCell` et `applyGrid`.
 - Animation de victoire (`VictoryOverlay`) : confettis + texte "Bravo !" ou "Tricheur !" selon le flag `cheated`.
+
+### Tests
+- **Toute logique dans `src/lib/`** doit avoir des tests unitaires dans `tests/unit/`.
+- **Tout composant non trivial** doit avoir des tests dans `tests/component/`.
+- **Ne pas mocker la logique métier** dans les tests de composants — utiliser les vraies fonctions `lib/`.
+- Les tests e2e Playwright couvrent les parcours utilisateur complets (générer → jouer → résoudre).
+- Les stores Zustand sont testables directement via `useGameStore.getState()` / `useGameStore.setState()` — reset manuel dans `beforeEach`.
+- **Tests i18n** (`tests/unit/i18n.test.ts`) : vérifient que chaque langue a exactement les mêmes clés que la référence (fr) et qu'aucune valeur n'est vide.
+- **Web Workers en tests** : jsdom ne supporte pas les Web Workers. `generatePuzzle` utilise un worker, donc les tests mockent `Worker` avec `vi.stubGlobal('Worker', MockWorker)`. Le mock simule le worker de manière synchrone.
 
 ---
 

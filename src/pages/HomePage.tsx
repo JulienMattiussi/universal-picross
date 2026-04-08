@@ -60,11 +60,11 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/favicon.svg" alt="" width={40} height={40} />
-            <h1 className="text-2xl font-bold text-gray-900">Universal Picross</h1>
+            <h1 className="text-2xl font-bold text-txt">Universal Picross</h1>
           </div>
           <button
             onClick={onOptions}
-            className="text-sm text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+            className="text-sm text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer"
             aria-label={t.options.title}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -76,15 +76,15 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
             </svg>
           </button>
         </div>
-        <p className="text-gray-500 text-sm mt-1">{t.home.subtitle}</p>
+        <p className="text-txt-tertiary text-sm mt-1">{t.home.subtitle}</p>
       </header>
 
       <div className="w-full max-w-sm flex flex-col gap-4">
         {/* Loader de génération */}
         {generating ? (
-          <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex flex-col items-center gap-4 p-8 bg-surface-card rounded-xl border border-brd shadow-sm">
             <Spinner />
-            <span className="text-sm text-gray-600 font-medium">{t.home.generating}</span>
+            <span className="text-sm text-txt-secondary font-medium">{t.home.generating}</span>
             <Button variant="secondary" size="sm" onClick={handleCancel}>
               {t.common.cancel}
             </Button>
@@ -93,48 +93,48 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
           <>
             <button
               onClick={() => onImport('image')}
-              className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
+              className="flex items-center gap-4 p-5 bg-surface-card rounded-xl border border-brd shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
             >
               <span className="text-3xl">📂</span>
               <div>
-                <span className="font-semibold text-gray-900 block">{t.home.openImage}</span>
-                <span className="text-sm text-gray-500">{t.home.openImageDesc}</span>
+                <span className="font-semibold text-txt block">{t.home.openImage}</span>
+                <span className="text-sm text-txt-tertiary">{t.home.openImageDesc}</span>
               </div>
             </button>
 
             <button
               onClick={() => onImport('camera')}
-              className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
+              className="flex items-center gap-4 p-5 bg-surface-card rounded-xl border border-brd shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
             >
               <span className="text-3xl">📷</span>
               <div>
-                <span className="font-semibold text-gray-900 block">{t.home.takePhoto}</span>
-                <span className="text-sm text-gray-500">{t.home.takePhotoDesc}</span>
+                <span className="font-semibold text-txt block">{t.home.takePhoto}</span>
+                <span className="text-sm text-txt-tertiary">{t.home.takePhotoDesc}</span>
               </div>
             </button>
 
             <button
               onClick={() => onImport('photo')}
-              className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
+              className="flex items-center gap-4 p-5 bg-surface-card rounded-xl border border-brd shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
             >
               <span className="text-3xl">🖼️</span>
               <div>
-                <span className="font-semibold text-gray-900 block">{t.photoToPuzzle.title}</span>
-                <span className="text-sm text-gray-500">{t.photoToPuzzle.titleDesc}</span>
+                <span className="font-semibold text-txt block">{t.photoToPuzzle.title}</span>
+                <span className="text-sm text-txt-tertiary">{t.photoToPuzzle.titleDesc}</span>
               </div>
             </button>
 
-            <div className="flex flex-col gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex flex-col gap-4 p-5 bg-surface-card rounded-xl border border-brd shadow-sm">
               <div className="flex items-center gap-4">
                 <span className="text-3xl">🎲</span>
                 <div>
-                  <span className="font-semibold text-gray-900 block">{t.home.generate}</span>
-                  <span className="text-sm text-gray-500">{t.home.generateDesc}</span>
+                  <span className="font-semibold text-txt block">{t.home.generate}</span>
+                  <span className="text-sm text-txt-tertiary">{t.home.generateDesc}</span>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-sm text-gray-600">
+                <label className="text-sm text-txt-secondary">
                   {t.home.sizeLabel} :{' '}
                   <span className="font-medium">
                     {size}×{size}
@@ -148,14 +148,14 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
                   onChange={(e) => setSize(Number(e.target.value))}
                   className="accent-primary-500"
                 />
-                <div className="flex justify-between text-xs text-gray-400">
+                <div className="flex justify-between text-xs text-txt-muted">
                   <span>5</span>
                   <span>20</span>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm text-gray-600">{t.home.difficulty}</span>
+                <span className="text-sm text-txt-secondary">{t.home.difficulty}</span>
                 <div className="flex gap-2">
                   {difficulties.map(({ value, label }) => (
                     <button
@@ -164,7 +164,7 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
                         'flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
                         difficulty === value
                           ? 'bg-primary-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-primary-50',
+                          : 'bg-surface-tertiary text-txt-secondary hover:bg-primary-50',
                       ].join(' ')}
                       onClick={() => setDifficulty(value)}
                     >
@@ -183,7 +183,7 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
       </div>
 
       <footer className="mt-auto pt-8 pb-4">
-        <p className="text-xs text-gray-300 text-center">
+        <p className="text-xs text-txt-disabled text-center">
           Made with 🧡 by{' '}
           <a
             href="https://github.com/JulienMattiussi/universal-picross"

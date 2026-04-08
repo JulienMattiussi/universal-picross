@@ -122,6 +122,7 @@ export interface TranslationKeys {
   options: {
     title: string
     language: string
+    darkMode: string
     offlineMode: string
     offlineDesc: string
     offlineDownloading: string

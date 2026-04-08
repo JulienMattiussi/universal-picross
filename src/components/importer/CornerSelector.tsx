@@ -162,7 +162,7 @@ export default function CornerSelector({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-gray-600">{instructions[Math.min(corners.length, 2)]}</p>
+      <p className="text-sm text-txt-secondary">{instructions[Math.min(corners.length, 2)]}</p>
 
       <canvas
         ref={canvasRef}
@@ -171,7 +171,7 @@ export default function CornerSelector({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         style={{ cursor }}
-        className="rounded border border-gray-200 max-w-full"
+        className="rounded border border-brd max-w-full"
       />
 
       <div className="flex gap-2">

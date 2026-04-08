@@ -172,19 +172,19 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
   const back = goBack[phase]
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+    <div className="flex flex-col gap-3 p-4 bg-surface-card rounded-xl border border-brd shadow-sm">
       {/* En-tête avec navigation */}
       <div className="flex items-center gap-2">
         {back && (
           <button
             onClick={back}
-            className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer text-sm"
+            className="text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer text-sm"
             aria-label="Étape précédente"
           >
             ←
           </button>
         )}
-        <h3 className="font-semibold text-gray-800">{PHASE_TITLES[phase]}</h3>
+        <h3 className="font-semibold text-txt">{PHASE_TITLES[phase]}</h3>
       </div>
 
       {/* Phase upload */}
@@ -196,7 +196,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
         ))}
 
       {/* Erreur visible dans toutes les phases */}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       {/* Phase sélection des coins */}
       {(phase === 'selecting' || phase === 'extracting') && imageData && (
@@ -210,7 +210,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
 
       {/* Découpage en cours */}
       {phase === 'extracting' && (
-        <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 py-2 text-sm text-txt-tertiary">
           <Spinner />
           <span>{t.import.extracting}</span>
         </div>
@@ -229,10 +229,10 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
       {phase === 'recognizing' && (
         <div className="flex flex-col items-center gap-3 py-4">
           <Spinner />
-          <span className="text-sm text-gray-600 font-medium">
+          <span className="text-sm text-txt-secondary font-medium">
             {t.import.recognizingProgress} ({recognizeProgress.done} / {recognizeProgress.total})
           </span>
-          <div className="w-full bg-gray-100 rounded-full h-2">
+          <div className="w-full bg-surface-tertiary rounded-full h-2">
             <div
               className="bg-primary-500 h-2 rounded-full transition-all"
               style={{

@@ -108,20 +108,20 @@ export default function PhotoToPuzzlePanel({ mode }: PhotoToPuzzlePanelProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+    <div className="flex flex-col gap-3 p-4 bg-surface-card rounded-xl border border-brd shadow-sm">
       <div className="flex items-center gap-2">
         {phase !== 'upload' && (
           <button
             onClick={handleBack}
-            className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer text-sm"
+            className="text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer text-sm"
           >
             ←
           </button>
         )}
-        <h3 className="font-semibold text-gray-800">{PHASE_TITLES[phase]}</h3>
+        <h3 className="font-semibold text-txt">{PHASE_TITLES[phase]}</h3>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       {/* Phase upload */}
       {phase === 'upload' &&
@@ -135,7 +135,7 @@ export default function PhotoToPuzzlePanel({ mode }: PhotoToPuzzlePanelProps) {
       {phase === 'configure' && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm text-gray-600">
+            <label className="text-sm text-txt-secondary">
               {t.photoToPuzzle.chooseSize} :{' '}
               <span className="font-medium">
                 {gridSize}×{gridSize}
@@ -149,7 +149,7 @@ export default function PhotoToPuzzlePanel({ mode }: PhotoToPuzzlePanelProps) {
               onChange={(e) => setGridSize(Number(e.target.value))}
               className="accent-primary-500"
             />
-            <div className="flex justify-between text-xs text-gray-400">
+            <div className="flex justify-between text-xs text-txt-muted">
               <span>5</span>
               <span>20</span>
             </div>
@@ -163,11 +163,11 @@ export default function PhotoToPuzzlePanel({ mode }: PhotoToPuzzlePanelProps) {
       {/* Phase preview */}
       {phase === 'preview' && solution && (
         <div className="flex flex-col items-center gap-4">
-          <p className="text-sm text-gray-600">{t.photoToPuzzle.previewDesc}</p>
+          <p className="text-sm text-txt-secondary">{t.photoToPuzzle.previewDesc}</p>
           <PixelPreview grid={solution} />
 
           {notUnique && (
-            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 w-full">
+            <div className="text-sm text-warn-text bg-warn-bg border border-warn-border rounded-lg px-3 py-2 w-full">
               {t.photoToPuzzle.notUnique}
             </div>
           )}
@@ -193,7 +193,9 @@ export default function PhotoToPuzzlePanel({ mode }: PhotoToPuzzlePanelProps) {
       {phase === 'processing' && (
         <div className="flex flex-col items-center gap-3 py-4">
           <Spinner />
-          <span className="text-sm text-gray-600 font-medium">{t.photoToPuzzle.processing}</span>
+          <span className="text-sm text-txt-secondary font-medium">
+            {t.photoToPuzzle.processing}
+          </span>
           <Button variant="secondary" size="sm" onClick={handleBack}>
             {t.common.cancel}
           </Button>

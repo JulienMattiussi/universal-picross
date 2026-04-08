@@ -34,10 +34,10 @@ export default function SolverPanel() {
   if (!puzzle) return null
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-      <h3 className="font-semibold text-gray-800">{t.solver.title}</h3>
+    <div className="flex flex-col gap-3 p-4 bg-surface-card rounded-xl border border-brd shadow-sm">
+      <h3 className="font-semibold text-txt">{t.solver.title}</h3>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       <Button
         variant="secondary"

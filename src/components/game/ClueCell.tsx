@@ -7,9 +7,9 @@ interface ClueCellProps {
 }
 
 const STATUS_CLASSES: Record<ClueStatus, string> = {
-  normal: 'text-gray-700',
-  completed: 'text-gray-300',
-  impossible: 'text-red-500',
+  normal: 'text-txt-secondary',
+  completed: 'text-txt-disabled',
+  impossible: 'text-status-error',
 }
 
 export default function ClueCell({ value, size, status = 'normal' }: ClueCellProps) {

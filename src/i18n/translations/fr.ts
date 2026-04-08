@@ -111,6 +111,7 @@ export const fr: TranslationKeys = {
   options: {
     title: 'Options',
     language: 'Langue',
+    darkMode: 'Mode sombre',
     offlineMode: 'Mode hors-ligne',
     offlineDesc: "Précharge l'OCR (~15 Mo) pour pouvoir importer des images sans connexion.",
     offlineDownloading: 'Téléchargement en cours…',

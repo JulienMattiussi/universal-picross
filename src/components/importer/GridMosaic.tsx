@@ -50,11 +50,11 @@ export default function GridMosaic({ cells, onConfirm, onRetry }: GridMosaicProp
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-txt-secondary">
         {t.mosaic.detected.replace('{rows}', String(nRows)).replace('{cols}', String(nCols))}
       </p>
 
-      <div className="overflow-auto rounded border border-gray-200 p-2">
+      <div className="overflow-auto rounded border border-brd p-2">
         <div
           style={{
             display: 'grid',
@@ -68,7 +68,7 @@ export default function GridMosaic({ cells, onConfirm, onRetry }: GridMosaicProp
                 <div
                   key={e.key}
                   style={{ width: CELL, height: CELL }}
-                  className="rounded bg-gray-100"
+                  className="rounded bg-surface-tertiary"
                 />
               )
             }
@@ -77,7 +77,7 @@ export default function GridMosaic({ cells, onConfirm, onRetry }: GridMosaicProp
                 ? 'border-primary-300'
                 : e.kind === 'row-clue'
                   ? 'border-primary-300'
-                  : 'border-gray-300'
+                  : 'border-brd-strong'
             return (
               <img
                 key={e.key}
@@ -90,7 +90,7 @@ export default function GridMosaic({ cells, onConfirm, onRetry }: GridMosaicProp
         </div>
       </div>
 
-      <p className="text-xs text-gray-400">{t.mosaic.legend}</p>
+      <p className="text-xs text-txt-muted">{t.mosaic.legend}</p>
 
       <div className="flex gap-2">
         <Button onClick={onConfirm} className="flex-1">
