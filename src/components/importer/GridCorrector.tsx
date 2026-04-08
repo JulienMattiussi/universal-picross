@@ -1,169 +1,147 @@
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import { puzzleFromSolution } from '@/lib/generator'
-import { useGame } from '@/hooks/useGame'
-import type { ProcessResult } from '@/lib/imageProcessor'
+import { solve } from '@/lib/solver'
+import type { GridCellsResult } from '@/lib/imageProcessor'
 
 interface GridCorrectorProps {
-  result: ProcessResult
-  onClose: () => void
+  cells: GridCellsResult
+  initialValues: { rows: string[]; cols: string[] }
+  onComplete: (rowClues: number[][], colClues: number[][]) => void
+  onBack: () => void
 }
 
-const MIN_SIZE = 2
-const MAX_SIZE = 20
+export default function GridCorrector({
+  cells,
+  initialValues,
+  onComplete,
+  onBack,
+}: GridCorrectorProps) {
+  const { nRows, nCols, colClueCells, rowClueCells } = cells
 
-export default function GridCorrector({ result, onClose }: GridCorrectorProps) {
-  const { loadPuzzle } = useGame()
+  const [colValues, setColValues] = useState<string[]>([...initialValues.cols])
+  const [rowValues, setRowValues] = useState<string[]>([...initialValues.rows])
+  const [error, setError] = useState<string | null>(null)
 
-  // Pré-remplissage depuis l'OCR ; on prend au moins 5 entrées
-  const initLines = (clues: number[][], minCount: number) => {
-    const filled = clues.map((c) => c.join(' '))
-    while (filled.length < minCount) filled.push('')
-    return filled
-  }
-  const defaultSize = Math.max(result.rawClues.rows.length, result.rawClues.cols.length, 5)
-  const [rows, setRows] = useState<string[]>(() => initLines(result.rawClues.rows, defaultSize))
-  const [cols, setCols] = useState<string[]>(() => initLines(result.rawClues.cols, defaultSize))
+  const parseClue = (s: string) =>
+    s
+      .split(/\s+/)
+      .map(Number)
+      .filter((n) => !isNaN(n) && n > 0)
 
-  const parseClues = (lines: string[]) =>
-    lines.map((l) =>
-      l
-        .split(/\s+/)
-        .map(Number)
-        .filter((n) => !isNaN(n) && n > 0),
-    )
+  const handleValidate = () => {
+    const rowClues = rowValues.map(parseClue)
+    const colClues = colValues.map(parseClue)
 
-  const addRow = () => rows.length < MAX_SIZE && setRows([...rows, ''])
-  const removeRow = () => rows.length > MIN_SIZE && setRows(rows.slice(0, -1))
-  const addCol = () => cols.length < MAX_SIZE && setCols([...cols, ''])
-  const removeCol = () => cols.length > MIN_SIZE && setCols(cols.slice(0, -1))
-
-  const handlePlay = () => {
-    const rowClues = parseClues(rows)
-    const colClues = parseClues(cols)
     const size = Math.max(rowClues.length, colClues.length)
-    const emptyGrid = Array.from({ length: size }, () => Array(size).fill(false))
-    const puzzle = puzzleFromSolution(emptyGrid)
-    puzzle.clues.rows = rowClues
-    puzzle.clues.cols = colClues
-    loadPuzzle(puzzle)
-    onClose()
+    const checkPuzzle = puzzleFromSolution(
+      Array.from({ length: size }, () => Array(size).fill(false)),
+    )
+    checkPuzzle.clues.rows = rowClues
+    checkPuzzle.clues.cols = colClues
+
+    if (solve(checkPuzzle) === null) {
+      setError("La grille n'a toujours pas de solution. Vérifiez encore les indices.")
+      return
+    }
+
+    setError(null)
+    onComplete(rowClues, colClues)
+  }
+
+  const updateCol = (i: number, val: string) => {
+    const next = [...colValues]
+    next[i] = val
+    setColValues(next)
+    setError(null)
+  }
+
+  const updateRow = (i: number, val: string) => {
+    const next = [...rowValues]
+    next[i] = val
+    setRowValues(next)
+    setError(null)
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Aperçu de l'image importée */}
-      <img
-        src={result.imageUrl}
-        alt="Picross importé"
-        className="w-full max-h-48 object-contain rounded border border-gray-200 bg-gray-50"
-      />
+      <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        Aucune solution trouvée avec les indices reconnus. Corrigez les valeurs incorrectes puis
+        validez.
+      </div>
 
-      {/* Statut de la détection */}
-      <p className="text-sm text-gray-500">
-        {result.gridDetected ? (
-          <>
-            Grille détectée. Confiance OCR :{' '}
-            <span
-              className={
-                result.confidence > 0.7
-                  ? 'font-medium text-green-600'
-                  : 'font-medium text-amber-600'
-              }
-            >
-              {Math.round(result.confidence * 100)}%
-            </span>{' '}
-            — vérifiez et corrigez les indices si besoin.
-          </>
-        ) : (
-          "Grille non détectée automatiquement. Saisissez les indices en vous référant à l'image."
-        )}
-      </p>
-
-      <div className="grid grid-cols-2 gap-4">
-        {/* Lignes */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Lignes ({rows.length})
-            </span>
-            <div className="flex gap-1">
-              <button
-                onClick={removeRow}
-                disabled={rows.length <= MIN_SIZE}
-                className="w-5 h-5 rounded text-gray-500 hover:text-gray-800 disabled:opacity-30 cursor-pointer text-sm leading-none"
-              >
-                −
-              </button>
-              <button
-                onClick={addRow}
-                disabled={rows.length >= MAX_SIZE}
-                className="w-5 h-5 rounded text-gray-500 hover:text-gray-800 disabled:opacity-30 cursor-pointer text-sm leading-none"
-              >
-                +
-              </button>
+      {/* Colonnes */}
+      <div>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+          Colonnes ({nCols})
+        </p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {Array.from({ length: nCols }, (_, i) => (
+            <div key={i} className="flex flex-col items-center gap-1 shrink-0">
+              <div className="w-14 h-14 border border-gray-200 rounded bg-gray-50 overflow-hidden">
+                <img
+                  src={colClueCells[i]}
+                  alt={`Col ${i + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    imageRendering: 'pixelated',
+                  }}
+                />
+              </div>
+              <input
+                type="text"
+                value={colValues[i] ?? ''}
+                onChange={(e) => updateCol(i, e.target.value)}
+                className="w-14 border border-gray-300 rounded px-1 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="1 2"
+              />
             </div>
-          </div>
-          {rows.map((r, i) => (
-            <input
-              key={i}
-              value={r}
-              onChange={(e) => {
-                const next = [...rows]
-                next[i] = e.target.value
-                setRows(next)
-              }}
-              className="border border-gray-200 rounded px-2 py-1 text-sm font-mono"
-              placeholder="ex: 3 1"
-            />
-          ))}
-        </div>
-
-        {/* Colonnes */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Colonnes ({cols.length})
-            </span>
-            <div className="flex gap-1">
-              <button
-                onClick={removeCol}
-                disabled={cols.length <= MIN_SIZE}
-                className="w-5 h-5 rounded text-gray-500 hover:text-gray-800 disabled:opacity-30 cursor-pointer text-sm leading-none"
-              >
-                −
-              </button>
-              <button
-                onClick={addCol}
-                disabled={cols.length >= MAX_SIZE}
-                className="w-5 h-5 rounded text-gray-500 hover:text-gray-800 disabled:opacity-30 cursor-pointer text-sm leading-none"
-              >
-                +
-              </button>
-            </div>
-          </div>
-          {cols.map((c, i) => (
-            <input
-              key={i}
-              value={c}
-              onChange={(e) => {
-                const next = [...cols]
-                next[i] = e.target.value
-                setCols(next)
-              }}
-              className="border border-gray-200 rounded px-2 py-1 text-sm font-mono"
-              placeholder="ex: 2"
-            />
           ))}
         </div>
       </div>
 
+      {/* Lignes */}
+      <div>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+          Lignes ({nRows})
+        </p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {Array.from({ length: nRows }, (_, i) => (
+            <div key={i} className="flex flex-col items-center gap-1 shrink-0">
+              <div className="w-14 h-14 border border-gray-200 rounded bg-gray-50 overflow-hidden">
+                <img
+                  src={rowClueCells[i]}
+                  alt={`Ligne ${i + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    imageRendering: 'pixelated',
+                  }}
+                />
+              </div>
+              <input
+                type="text"
+                value={rowValues[i] ?? ''}
+                onChange={(e) => updateRow(i, e.target.value)}
+                className="w-14 border border-gray-300 rounded px-1 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="1 2"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
       <div className="flex gap-2">
-        <Button onClick={handlePlay} className="flex-1">
-          Jouer avec ces indices
+        <Button variant="secondary" onClick={onBack}>
+          ← Retour
         </Button>
-        <Button variant="secondary" onClick={onClose}>
-          Annuler
+        <Button className="flex-1" onClick={handleValidate}>
+          Valider et jouer
         </Button>
       </div>
     </div>

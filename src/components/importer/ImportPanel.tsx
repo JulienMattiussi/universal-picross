@@ -3,6 +3,7 @@ import ImageUploader from './ImageUploader'
 import CameraCapture from './CameraCapture'
 import CornerSelector from './CornerSelector'
 import GridMosaic from './GridMosaic'
+import GridCorrector from './GridCorrector'
 import ClueValidator from './ClueValidator'
 import Spinner from '@/components/ui/Spinner'
 import {
@@ -14,6 +15,7 @@ import {
 import { puzzleFromSolution } from '@/lib/generator'
 import { solve } from '@/lib/solver'
 import { useGame } from '@/hooks/useGame'
+import { useDebugStore } from '@/store/debugStore'
 
 type Tab = 'upload' | 'camera'
 type Phase =
@@ -23,11 +25,11 @@ type Phase =
   | 'mosaic'
   | 'recognizing'
   | 'validating'
-  | 'processing'
-  | 'done'
+  | 'correcting'
 
 export default function ImportPanel() {
   const { loadPuzzle, reset } = useGame()
+  const { debug } = useDebugStore()
 
   const [tab, setTab] = useState<Tab>('upload')
   const [phase, setPhase] = useState<Phase>('upload')
@@ -51,8 +53,6 @@ export default function ImportPanel() {
   const handleCornersConfirmed = (p1: Point, p2: Point) => {
     if (!imageData) return
     setError(null)
-    // extractGridCells est synchrone mais génère de nombreux canvas/toDataURL —
-    // on passe par un microtask pour laisser React rendre le spinner d'abord.
     setPhase('extracting' as Phase)
     setTimeout(() => {
       try {
@@ -66,7 +66,11 @@ export default function ImportPanel() {
         }
         setCorners([p1, p2])
         setGridCells(cells)
-        setPhase('mosaic')
+        if (debug) {
+          setPhase('mosaic')
+        } else {
+          startRecognition(cells)
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Erreur lors du découpage.')
         setPhase('selecting')
@@ -74,16 +78,14 @@ export default function ImportPanel() {
     }, 0)
   }
 
-  const handleMosaicConfirmed = async () => {
-    if (!gridCells) return
-    const total = gridCells.nCols + gridCells.nRows
+  const startRecognition = async (cells: GridCellsResult) => {
+    const total = cells.nCols + cells.nRows
     setRecognizeProgress({ done: 0, total })
     setPhase('recognizing')
-    const values = await recognizeAllClueCells(gridCells, (done, t) =>
+    const values = await recognizeAllClueCells(cells, (done, t) =>
       setRecognizeProgress({ done, total: t }),
     )
 
-    // Vérifie que les indices reconnus donnent un puzzle soluble
     const parseClue = (s: string) =>
       s
         .split(/\s+/)
@@ -91,16 +93,25 @@ export default function ImportPanel() {
         .filter((n) => !isNaN(n) && n > 0)
     const rowClues = values.rows.map(parseClue)
     const colClues = values.cols.map(parseClue)
+
     const size = Math.max(rowClues.length, colClues.length)
     const checkPuzzle = puzzleFromSolution(
       Array.from({ length: size }, () => Array(size).fill(false)),
     )
     checkPuzzle.clues.rows = rowClues
     checkPuzzle.clues.cols = colClues
-    setIsSolvable(solve(checkPuzzle) !== null)
+    const solvable = solve(checkPuzzle) !== null
 
-    setRecognizedValues(values)
-    setPhase('validating')
+    if (debug) {
+      setIsSolvable(solvable)
+      setRecognizedValues(values)
+      setPhase('validating')
+    } else if (solvable) {
+      handleValidationComplete(rowClues, colClues)
+    } else {
+      setRecognizedValues(values)
+      setPhase('correcting')
+    }
   }
 
   const handleValidationComplete = (rowClues: number[][], colClues: number[][]) => {
@@ -124,7 +135,6 @@ export default function ImportPanel() {
     setIsSolvable(null)
   }
 
-  // Retour d'une étape en arrière selon la phase courante
   const goBack: Partial<Record<Phase, () => void>> = {
     selecting: resetAll,
     extracting: resetAll,
@@ -135,6 +145,7 @@ export default function ImportPanel() {
       setPhase('selecting')
     },
     validating: () => setPhase('mosaic'),
+    correcting: () => (debug && gridCells ? setPhase('mosaic') : setPhase('selecting')),
   }
 
   const PHASE_TITLES: Partial<Record<Phase, string>> = {
@@ -143,7 +154,7 @@ export default function ImportPanel() {
     mosaic: 'Vérification du découpage',
     recognizing: 'Reconnaissance des chiffres',
     validating: 'Validation des indices',
-    processing: 'Reconnaissance des indices',
+    correcting: 'Correction des indices',
   }
 
   const back = goBack[phase]
@@ -205,7 +216,7 @@ export default function ImportPanel() {
         />
       )}
 
-      {/* Découpage en cours (opérations canvas synchrones) */}
+      {/* Découpage en cours */}
       {phase === 'extracting' && (
         <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
           <Spinner />
@@ -213,11 +224,11 @@ export default function ImportPanel() {
         </div>
       )}
 
-      {/* Phase mosaïque — vérification visuelle du découpage */}
+      {/* Phase mosaïque — mode diagnostic uniquement */}
       {phase === 'mosaic' && gridCells && (
         <GridMosaic
           cells={gridCells}
-          onConfirm={handleMosaicConfirmed}
+          onConfirm={() => startRecognition(gridCells)}
           onRetry={() => setPhase('selecting')}
         />
       )}
@@ -240,7 +251,7 @@ export default function ImportPanel() {
         </div>
       )}
 
-      {/* Phase validation manuelle des indices */}
+      {/* Phase validation case par case — mode diagnostic uniquement */}
       {phase === 'validating' && gridCells && recognizedValues && (
         <ClueValidator
           cells={gridCells}
@@ -248,6 +259,16 @@ export default function ImportPanel() {
           solvable={isSolvable}
           onComplete={handleValidationComplete}
           onBack={() => setPhase('mosaic')}
+        />
+      )}
+
+      {/* Phase correction — grille non soluble, correction manuelle */}
+      {phase === 'correcting' && gridCells && recognizedValues && (
+        <GridCorrector
+          cells={gridCells}
+          initialValues={recognizedValues}
+          onComplete={handleValidationComplete}
+          onBack={goBack.correcting!}
         />
       )}
     </div>
