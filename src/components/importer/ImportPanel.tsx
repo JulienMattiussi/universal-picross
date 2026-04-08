@@ -37,7 +37,6 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
 
   const [phase, setPhase] = useState<Phase>('upload')
   const [imageData, setImageData] = useState<ImageData | null>(null)
-  const [, setCorners] = useState<[Point, Point] | null>(null)
   const [gridCells, setGridCells] = useState<GridCellsResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recognizeProgress, setRecognizeProgress] = useState({ done: 0, total: 0 })
@@ -73,7 +72,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
           setPhase('selecting')
           return
         }
-        setCorners([p1, p2])
+
         setGridCells(cells)
         if (debug) {
           setPhase('mosaic')
@@ -139,7 +138,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
   const resetAll = () => {
     setPhase('upload')
     setImageData(null)
-    setCorners(null)
+
     setGridCells(null)
     setError(null)
     setRecognizedValues(null)
@@ -152,7 +151,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
     extracting: resetAll,
     mosaic: () => {
       setGridCells(null)
-      setCorners(null)
+
       setError(null)
       setPhase('selecting')
     },

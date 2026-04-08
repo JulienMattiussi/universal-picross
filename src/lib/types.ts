@@ -26,10 +26,3 @@ export interface PicrossPuzzle {
 
 // État de la partie en cours
 export type GameStatus = 'idle' | 'playing' | 'solved' | 'solving'
-
-export interface GameState {
-  puzzle: PicrossPuzzle | null
-  grid: PlayGrid
-  status: GameStatus
-  elapsedSeconds: number
-}

@@ -1,21 +1,6 @@
-import type { SolutionGrid } from './types'
-
 export interface Point {
   x: number
   y: number
-}
-
-export interface ProcessResult {
-  grid: SolutionGrid
-  confidence: number
-  rawClues: { rows: number[][]; cols: number[][] }
-  imageUrl: string
-  gridDetected: boolean
-}
-
-export interface ProcessError {
-  message: string
-  step: 'detection' | 'ocr' | 'parse'
 }
 
 /**
@@ -32,25 +17,6 @@ export interface GridCellsResult {
   /** Cases intérieures de la grille de jeu, [nRows][nCols] */
   interiorCells: string[][]
 }
-
-export type ProcessStep =
-  | 'cropping'
-  | 'analyzing-grid'
-  | 'extracting-clues'
-  | 'loading-ocr'
-  | 'recognizing-rows'
-  | 'recognizing-cols'
-  | 'finalizing'
-
-export const PROCESS_STEPS: ProcessStep[] = [
-  'cropping',
-  'analyzing-grid',
-  'extracting-clues',
-  'loading-ocr',
-  'recognizing-rows',
-  'recognizing-cols',
-  'finalizing',
-]
 
 // ---------------------------------------------------------------------------
 // Détection de grille par analyse de projections (canvas 2D pur, sans libs)
@@ -368,20 +334,6 @@ function cropToContent(src: HTMLCanvasElement, pad = 8): HTMLCanvasElement {
   return cropCanvas(src, cx, cy, cw, ch)
 }
 
-function getWords(data: Tesseract.Page): Tesseract.Word[] {
-  return (data.blocks ?? []).flatMap((b) =>
-    b.paragraphs.flatMap((p) => p.lines.flatMap((l) => l.words)),
-  )
-}
-
-function parseNums(text: string): number[] {
-  return text
-    .trim()
-    .split(/\s+/)
-    .map(Number)
-    .filter((n) => !isNaN(n) && n >= 0)
-}
-
 /**
  * Corrige les chiffres OCR mal collés : si un nombre dépasse maxValue (impossible
  * dans une grille de cette taille), il est séparé en ses chiffres individuels.
@@ -580,124 +532,4 @@ export async function recognizeAllClueCells(
   await worker.terminate()
 
   return { rows: rowResults, cols: colResults }
-}
-
-/**
- * Reconnaît les indices d'un picross dont les coins de grille de jeu ont été
- * sélectionnés par l'utilisateur. Les bandes d'indices sont extraites à l'extérieur
- * de la sélection ; la taille uniforme des cases sert à l'assignation spatiale OCR.
- */
-export async function processImageWithCorners(
-  imageData: ImageData,
-  p1: Point,
-  p2: Point,
-  onProgress?: (step: ProcessStep) => void,
-): Promise<ProcessResult | ProcessError> {
-  const fullCanvas = imageDataToCanvas(imageData)
-  const imageUrl = fullCanvas.toDataURL('image/png')
-
-  try {
-    // 1. Recadrage de la grille de jeu
-    onProgress?.('cropping')
-    const x1 = Math.round(Math.min(p1.x, p2.x))
-    const y1 = Math.round(Math.min(p1.y, p2.y))
-    const x2 = Math.round(Math.max(p1.x, p2.x))
-    const y2 = Math.round(Math.max(p1.y, p2.y))
-    const selW = x2 - x1
-    const selH = y2 - y1
-
-    const croppedData = cropCanvas(fullCanvas, x1, y1, selW, selH)
-      .getContext('2d')!
-      .getImageData(0, 0, selW, selH)
-
-    // 2. Détection des lignes dans la grille de jeu
-    onProgress?.('analyzing-grid')
-    const grid = detectGridStructure(croppedData)
-
-    if (!grid) {
-      return {
-        grid: Array.from({ length: 5 }, () => Array(5).fill(false)) as SolutionGrid,
-        confidence: 0,
-        rawClues: { rows: [], cols: [] },
-        imageUrl,
-        gridDetected: false,
-      }
-    }
-
-    const nRows = grid.rowLines.length - 1
-    const nCols = grid.colLines.length - 1
-    const cellW = selW / nCols
-    const cellH = selH / nRows
-
-    // 3. Extraction des bandes d'indices (hors sélection)
-    onProgress?.('extracting-clues')
-    const clueW = Math.min(x1, Math.ceil(cellW * 2))
-    const clueH = Math.min(y1, Math.ceil(cellH * 2))
-    const SCALE = 4
-
-    const prepare = (cx: number, cy: number, cw: number, ch: number) =>
-      upscaleCanvas(
-        addWhitePadding(adaptiveNormalize(cropCanvas(fullCanvas, cx, cy, cw, ch)), 8),
-        SCALE,
-      )
-
-    // Bande lignes : à gauche de x1
-    const rowStrip = prepare(x1 - clueW, y1, clueW, selH)
-    // Bande colonnes : au-dessus de y1
-    const colStrip = prepare(x1, y1 - clueH, selW, clueH)
-
-    // 4. Chargement OCR
-    onProgress?.('loading-ocr')
-    const { createWorker } = await import('tesseract.js')
-    const worker = await createWorker('eng', 1, { logger: () => {} })
-    await worker.setParameters({
-      tessedit_char_whitelist: '0123456789 ',
-      tessedit_pageseg_mode: '6' as unknown as Parameters<
-        typeof worker.setParameters
-      >[0]['tessedit_pageseg_mode'],
-    })
-
-    // 5 & 6. OCR des deux bandes
-    onProgress?.('recognizing-rows')
-    const rowResult = await worker.recognize(rowStrip, {}, { blocks: true })
-    onProgress?.('recognizing-cols')
-    const colResult = await worker.recognize(colStrip, {}, { blocks: true })
-    await worker.terminate()
-
-    // 7. Assignation spatiale par taille de case uniforme
-    onProgress?.('finalizing')
-    const rowClues: number[][] = Array.from({ length: nRows }, () => [])
-    const colClues: number[][] = Array.from({ length: nCols }, () => [])
-
-    for (const word of getWords(rowResult.data)) {
-      // absY = position dans la bande + y1 (début de la grille)
-      const absY = (word.bbox.y0 + word.bbox.y1) / 2 / SCALE + y1
-      const i = Math.floor((absY - y1) / cellH)
-      if (i >= 0 && i < nRows) rowClues[i].push(...parseNums(word.text))
-    }
-
-    for (const word of getWords(colResult.data)) {
-      // absX = position dans la bande + x1
-      const absX = (word.bbox.x0 + word.bbox.x1) / 2 / SCALE + x1
-      const j = Math.floor((absX - x1) / cellW)
-      if (j >= 0 && j < nCols) colClues[j].push(...parseNums(word.text))
-    }
-
-    const confidence = Math.max(rowResult.data.confidence, colResult.data.confidence) / 100
-    const size = Math.max(nRows, nCols, 5)
-    const emptyGrid: SolutionGrid = Array.from({ length: size }, () => Array(size).fill(false))
-
-    return {
-      grid: emptyGrid,
-      confidence,
-      rawClues: { rows: rowClues, cols: colClues },
-      imageUrl,
-      gridDetected: true,
-    }
-  } catch (err) {
-    return {
-      message: err instanceof Error ? err.message : 'Erreur inconnue',
-      step: 'detection',
-    }
-  }
 }
