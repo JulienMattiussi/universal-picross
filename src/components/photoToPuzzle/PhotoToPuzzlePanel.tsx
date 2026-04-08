@@ -10,12 +10,7 @@ import { useTranslation } from '@/i18n/useTranslation'
 import type { SolutionGrid } from '@/lib/types'
 
 type Phase = 'upload' | 'configure' | 'preview' | 'processing'
-
-interface PhotoToPuzzlePanelProps {
-  mode: 'image' | 'camera'
-}
-
-export default function PhotoToPuzzlePanel({ mode }: PhotoToPuzzlePanelProps) {
+export default function PhotoToPuzzlePanel() {
   const t = useTranslation()
   const { loadPuzzle } = useGame()
 
@@ -124,12 +119,18 @@ export default function PhotoToPuzzlePanel({ mode }: PhotoToPuzzlePanelProps) {
       {error && <p className="text-sm text-status-error">{error}</p>}
 
       {/* Phase upload */}
-      {phase === 'upload' &&
-        (mode === 'image' ? (
-          <ImageUploader onImage={handleImage} />
-        ) : (
-          <CameraCapture onCapture={handleImage} />
-        ))}
+      {phase === 'upload' && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-txt-secondary">📂 {t.home.openImage}</span>
+            <ImageUploader onImage={handleImage} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-txt-secondary">📷 {t.home.takePhoto}</span>
+            <CameraCapture onCapture={handleImage} />
+          </div>
+        </div>
+      )}
 
       {/* Phase configure : choix de taille */}
       {phase === 'configure' && (

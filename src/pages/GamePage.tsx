@@ -73,11 +73,7 @@ export default function GamePage({ importMode, onBack }: GamePageProps) {
       {/* Flux import */}
       {showImport && (
         <div className="w-full max-w-sm">
-          {importMode === 'photo' ? (
-            <PhotoToPuzzlePanel mode="image" />
-          ) : (
-            <ImportPanel mode={importMode!} />
-          )}
+          {importMode === 'photo' ? <PhotoToPuzzlePanel /> : <ImportPanel mode={importMode!} />}
         </div>
       )}
 

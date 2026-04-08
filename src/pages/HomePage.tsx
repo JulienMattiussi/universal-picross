@@ -111,7 +111,10 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
             >
               <span className="text-3xl">📷</span>
               <div>
-                <span className="font-semibold text-txt block">{t.home.takePhoto}</span>
+                <span className="font-semibold text-txt block">
+                  {t.home.takePhoto}
+                  <span className="ml-2 text-xs font-normal text-txt-muted">WIP</span>
+                </span>
                 <span className="text-sm text-txt-tertiary">{t.home.takePhotoDesc}</span>
               </div>
             </button>
