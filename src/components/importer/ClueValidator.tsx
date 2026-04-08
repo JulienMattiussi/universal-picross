@@ -12,6 +12,7 @@ import {
   addWhitePadding,
 } from '@/lib/image/canvas'
 import { segmentBlobs, extractBlob, matchCellDigits } from '@/lib/image/templateMatch'
+import { matchDigitHausdorff } from '@/lib/image/hausdorffMatch'
 import { loadImageFromUrl } from '@/lib/image/ocr'
 
 interface ClueValidatorProps {
@@ -74,8 +75,16 @@ export default function ClueValidator({
   // Lance la reconnaissance sur un canvas et logge le résultat
   const recognizeAndLog = async (canvas: HTMLCanvasElement, imageLabel: string) => {
     const dataUrl = canvas.toDataURL('image/png')
+
+    // Template matching (IoU)
     const tmplResult = matchCellDigits(canvas, false)
 
+    // Hausdorff (contours)
+    const hausdorff = matchDigitHausdorff(canvas)
+    const hausdorffResult = hausdorff.text
+    const hausdorffScore = hausdorff.score
+
+    // Tesseract
     let tessResult = ''
     try {
       const { createWorker } = await import('tesseract.js')
@@ -104,10 +113,12 @@ export default function ClueValidator({
     }
 
     console.log(
-      `[${imageLabel}] %c     %c  Template: %c${tmplResult || '(vide)'}%c  Tesseract: %c${tessResult || '(vide)'}`,
+      `[${imageLabel}] %c     %c  Template(IoU): %c${tmplResult || '(vide)'}%c  Hausdorff: %c${hausdorffResult || '(vide)'} (${(hausdorffScore * 100).toFixed(0)}%%)%c  Tesseract: %c${tessResult || '(vide)'}`,
       `background:url(${dataUrl}) no-repeat center/contain;padding:24px 16px;border:1px solid #ccc`,
       '',
       tmplResult ? 'color:green;font-weight:bold' : 'color:red',
+      '',
+      hausdorffResult ? 'color:green;font-weight:bold' : 'color:red',
       '',
       tessResult ? 'color:green;font-weight:bold' : 'color:red',
     )
