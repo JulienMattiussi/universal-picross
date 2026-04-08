@@ -53,7 +53,9 @@ export const it: TranslationKeys = {
   },
   corner: {
     instruction1: 'Clicca sul primo angolo della griglia (es. in alto a sinistra).',
+    instruction1cell: 'Clicca dentro una cella in alto a sinistra della griglia.',
     instruction2: "Clicca sull'angolo opposto (es. in basso a destra).",
+    instruction2cell: 'Clicca dentro una cella in basso a destra della griglia.',
     instructionAuto: 'Griglia rilevata automaticamente. Regola se necessario, poi conferma.',
     instructionManual: 'Trascina i punti per regolare, poi conferma.',
     validateSelection: 'Conferma selezione',

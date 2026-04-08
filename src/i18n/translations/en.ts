@@ -52,7 +52,9 @@ export const en: TranslationKeys = {
   },
   corner: {
     instruction1: 'Click on the first corner of the grid (e.g. top-left).',
+    instruction1cell: 'Click inside a cell at the top-left of the grid.',
     instruction2: 'Click on the opposite corner (e.g. bottom-right).',
+    instruction2cell: 'Click inside a cell at the bottom-right of the grid.',
     instructionAuto: 'Grid detected automatically. Adjust if needed, then confirm.',
     instructionManual: 'Drag the points to adjust, then confirm.',
     validateSelection: 'Confirm selection',

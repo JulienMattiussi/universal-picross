@@ -176,6 +176,46 @@ function colEdgeProfile(gray: Float32Array, width: number, height: number): Floa
 }
 
 /**
+ * Profil de saturation : proportion de pixels saturés par ligne/colonne.
+ * Les lignes de grille colorées (orange, bleu…) ont une saturation élevée
+ * alors que les cases (blanches/grises) sont désaturées.
+ */
+function pixelSaturation(r: number, g: number, b: number): number {
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  if (max === 0) return 0
+  return (max - min) / max
+}
+
+function rowSaturationProfile(imageData: ImageData): Float32Array {
+  const { width, height, data } = imageData
+  const p = new Float32Array(height)
+  for (let y = 0; y < height; y++) {
+    let sat = 0
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      sat += pixelSaturation(data[i], data[i + 1], data[i + 2])
+    }
+    p[y] = sat / width
+  }
+  return p
+}
+
+function colSaturationProfile(imageData: ImageData): Float32Array {
+  const { width, height, data } = imageData
+  const p = new Float32Array(width)
+  for (let x = 0; x < width; x++) {
+    let sat = 0
+    for (let y = 0; y < height; y++) {
+      const i = (y * width + x) * 4
+      sat += pixelSaturation(data[i], data[i + 1], data[i + 2])
+    }
+    p[x] = sat / height
+  }
+  return p
+}
+
+/**
  * Profil de clarté : proportion de pixels clairs par ligne/colonne.
  * Utile pour détecter des lignes de grille claires sur fond coloré.
  */
@@ -199,15 +239,24 @@ function colLightnessProfile(gray: Float32Array, width: number, height: number):
   return p
 }
 
+/** maxLines : nombre max de lignes accepté (une grille 20×20 a 21 lignes) */
 function tryFindGrid(
   hProfile: Float32Array,
   vProfile: Float32Array,
   thresholds: number[],
+  maxLines = 25,
 ): GridStructure | null {
   for (const threshold of thresholds) {
     const rowLines = findRegularLines(findLineCenters(hProfile, threshold))
     const colLines = findRegularLines(findLineCenters(vProfile, threshold))
-    if (rowLines && colLines && rowLines.length >= 4 && colLines.length >= 4)
+    if (
+      rowLines &&
+      colLines &&
+      rowLines.length >= 4 &&
+      colLines.length >= 4 &&
+      rowLines.length <= maxLines &&
+      colLines.length <= maxLines
+    )
       return { rowLines, colLines }
   }
   return null
@@ -249,24 +298,80 @@ function detectGridStructure(imageData: ImageData): GridStructure | null {
  * Détection étendue : essaie 3 stratégies en cascade.
  * Utilisée uniquement en fallback quand detectGridStructure échoue.
  */
-function detectGridStructureExtended(imageData: ImageData): GridStructure | null {
-  // D'abord la détection standard
+/**
+ * Si les lignes détectées sont espacées d'un multiple de N cases (ex: groupes de 5),
+ * subdivise pour retrouver chaque case individuelle.
+ * Teste les diviseurs 2..6 et garde celui qui produit le meilleur résultat.
+ */
+function subdivideLines(lines: number[]): number[] {
+  if (lines.length < 2) return lines
+  const spacings = lines.slice(1).map((l, i) => l - lines[i])
+  const avgSpacing = spacings.reduce((a, b) => a + b, 0) / spacings.length
+
+  for (const divisor of [5, 4, 3, 2, 6]) {
+    const subSpacing = avgSpacing / divisor
+    if (subSpacing < 4) continue // trop petit pour être une case
+    // Vérifier que tous les espacements sont proches d'un multiple du diviseur
+    const tol = subSpacing * 0.3
+    const allMatch = spacings.every(
+      (s) => Math.abs(s - Math.round(s / subSpacing) * subSpacing) <= tol,
+    )
+    if (!allMatch) continue
+
+    // Subdiviser
+    const result: number[] = [lines[0]]
+    for (let i = 0; i < lines.length - 1; i++) {
+      const steps = Math.round((lines[i + 1] - lines[i]) / subSpacing)
+      const step = (lines[i + 1] - lines[i]) / steps
+      for (let s = 1; s <= steps; s++) {
+        result.push(Math.round(lines[i] + s * step))
+      }
+    }
+    return result
+  }
+  return lines
+}
+
+/** @internal Réservé pour le mode couleur futur */
+export function detectGridStructureExtended(imageData: ImageData): GridStructure | null {
+  // D'abord la détection standard (lignes sombres)
   const standard = detectGridStructure(imageData)
   if (standard) return standard
+
+  // Saturation : les lignes de grille colorées ressortent en saturation
+  const hSat = rowSaturationProfile(imageData)
+  const vSat = colSaturationProfile(imageData)
+  // Saturation avec seuils élevés uniquement pour éviter le bruit
+  const satResult = tryFindGrid(hSat, vSat, [0.3, 0.25, 0.2, 0.15])
+  if (satResult) {
+    // Si peu de lignes trouvées (< 10), ce sont probablement les séparateurs
+    // de groupes (5×5). Subdiviser pour retrouver chaque case individuelle.
+    const rowLines =
+      satResult.rowLines.length < 10 ? subdivideLines(satResult.rowLines) : satResult.rowLines
+    const colLines =
+      satResult.colLines.length < 10 ? subdivideLines(satResult.colLines) : satResult.colLines
+    if (
+      rowLines.length >= 4 &&
+      colLines.length <= 25 &&
+      colLines.length >= 4 &&
+      rowLines.length <= 25
+    )
+      return { rowLines, colLines }
+  }
 
   const { width, height } = imageData
   const gray = toGrayscale(imageData)
 
-  // Transitions de luminosité (grilles avec traits clairs ou colorés)
+  // Transitions de luminosité (seuils conservateurs)
   const hEdge = rowEdgeProfile(gray, width, height)
   const vEdge = colEdgeProfile(gray, width, height)
-  const edgeResult = tryFindGrid(hEdge, vEdge, [0.08, 0.06, 0.04, 0.03, 0.02])
+  const edgeResult = tryFindGrid(hEdge, vEdge, [0.08, 0.06, 0.04])
   if (edgeResult) return edgeResult
 
-  // Lignes claires (grilles claires sur fond coloré)
+  // Lignes claires
   const hLight = rowLightnessProfile(gray, width, height)
   const vLight = colLightnessProfile(gray, width, height)
-  const lightResult = tryFindGrid(hLight, vLight, [0.5, 0.4, 0.35, 0.3, 0.25, 0.2])
+  const lightResult = tryFindGrid(hLight, vLight, [0.5, 0.4, 0.35, 0.3])
   if (lightResult) return lightResult
 
   return null
@@ -514,6 +619,443 @@ function loadImageFromUrl(url: string): Promise<HTMLImageElement> {
 }
 
 // ---------------------------------------------------------------------------
+// Détection de grille couleur par balayage de teinte
+// ---------------------------------------------------------------------------
+
+/**
+ * Parcourt une ligne de pixels et retourne les positions des séparateurs (bordures entre cases).
+ * Un séparateur = zone courte où la luminosité diffère du fond des cases.
+ */
+function scanLineForSeparators(imageData: ImageData, pos: number, horizontal: boolean): number[] {
+  const { width, height, data } = imageData
+  const len = horizontal ? width : height
+
+  const lum = new Float32Array(len)
+  for (let i = 0; i < len; i++) {
+    const px = horizontal ? i : pos
+    const py = horizontal ? pos : i
+    const idx = (py * width + px) * 4
+    lum[i] = (0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]) / 255
+  }
+
+  // Calculer la luminosité médiane (fond des cases)
+  const sorted = [...lum].sort()
+  const median = sorted[Math.floor(sorted.length / 2)]
+  const threshold = 0.06
+
+  // Trouver les zones qui s'écartent de la médiane (séparateurs)
+  const separators: number[] = []
+  let inSep = false
+  let sepStart = 0
+  for (let i = 0; i < len; i++) {
+    const isSep = Math.abs(lum[i] - median) > threshold
+    if (isSep && !inSep) {
+      inSep = true
+      sepStart = i
+    } else if (!isSep && inSep) {
+      inSep = false
+      separators.push(Math.round((sepStart + i) / 2))
+    }
+  }
+
+  return separators
+}
+
+/**
+ * À partir de positions de séparateurs bruts, trouve un espacement régulier
+ * et reconstruit les positions de toutes les lignes de grille.
+ */
+function regularizePositions(separators: number[], totalLen: number): number[] | null {
+  if (separators.length < 2) return null
+
+  // Calculer tous les espacements entre séparateurs consécutifs
+  const spacings = separators.slice(1).map((s, i) => s - separators[i])
+
+  // Trouver le plus petit espacement fréquent (= taille d'une case)
+  const minSpacing = Math.min(...spacings)
+  const maxSpacing = Math.max(...spacings)
+
+  // Si les espacements sont réguliers, utiliser directement
+  if (maxSpacing - minSpacing <= minSpacing * 0.3) {
+    return separators
+  }
+
+  // Sinon, chercher le GCD approximatif des espacements (taille d'une case)
+  let cellSize = minSpacing
+  for (const s of spacings) {
+    const ratio = s / cellSize
+    if (Math.abs(ratio - Math.round(ratio)) > 0.3) {
+      // Pas un multiple propre — essayer un cellSize plus petit
+      cellSize = Math.min(cellSize, s / Math.round(ratio))
+    }
+  }
+  if (cellSize < totalLen * 0.02) return null // trop petit
+
+  // Reconstruire les lignes régulières à partir du premier séparateur
+  const first = separators[0]
+  const lines: number[] = []
+  for (let pos = first; pos <= totalLen; pos += cellSize) {
+    lines.push(Math.round(pos))
+  }
+  // Ajouter aussi avant le premier séparateur si possible
+  for (let pos = first - cellSize; pos >= 0; pos -= cellSize) {
+    lines.unshift(Math.round(pos))
+  }
+
+  return lines.length >= 4 ? lines : null
+}
+
+/**
+ * Détecte la structure de grille en scannant les séparateurs à plusieurs positions,
+ * puis reconstruit les positions exactes des lignes.
+ */
+function detectGridByHueScan(imageData: ImageData): GridStructure | null {
+  const { width, height } = imageData
+  const sampleCount = 5
+
+  // Scanner les colonnes (balayages horizontaux)
+  const colScans: number[][] = []
+  for (let s = 0; s < sampleCount; s++) {
+    const y = Math.floor((height * (s + 1)) / (sampleCount + 1))
+    const seps = scanLineForSeparators(imageData, y, true)
+    if (seps.length >= 3) colScans.push(seps)
+  }
+
+  // Scanner les lignes (balayages verticaux)
+  const rowScans: number[][] = []
+  for (let s = 0; s < sampleCount; s++) {
+    const x = Math.floor((width * (s + 1)) / (sampleCount + 1))
+    const seps = scanLineForSeparators(imageData, x, false)
+    if (seps.length >= 3) rowScans.push(seps)
+  }
+
+  if (colScans.length === 0 || rowScans.length === 0) return null
+
+  // Prendre le scan qui a le plus de séparateurs (le plus complet)
+  const bestColScan = colScans.reduce((a, b) => (a.length >= b.length ? a : b))
+  const bestRowScan = rowScans.reduce((a, b) => (a.length >= b.length ? a : b))
+
+  const colLines = regularizePositions(bestColScan, width)
+  const rowLines = regularizePositions(bestRowScan, height)
+
+  if (!colLines || !rowLines) return null
+  if (colLines.length < 4 || colLines.length > 25) return null
+  if (rowLines.length < 4 || rowLines.length > 25) return null
+
+  return { rowLines, colLines }
+}
+
+// ---------------------------------------------------------------------------
+// Expansion de coins : depuis deux points intérieurs, cherche les bords de la grille
+// ---------------------------------------------------------------------------
+
+/**
+ * Mesure la luminosité d'un pixel dans l'image.
+ */
+function getLuminosity(data: Uint8ClampedArray, width: number, x: number, y: number): number {
+  const idx = (y * width + x) * 4
+  return (0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]) / 255
+}
+
+/**
+ * Depuis deux points cliqués à l'intérieur de cases (coins opposés),
+ * étend chaque bord vers l'extérieur en cherchant le dernier trait de grille.
+ *
+ * Stratégie : on part du bord de la sélection et on avance vers l'extérieur.
+ * On compare la luminosité de chaque pixel à la luminosité de référence
+ * (moyenne de la case cliquée). Un "trait" = zone courte (< 15px) qui diffère.
+ * On retient la position après le dernier trait trouvé = bord extérieur de la grille.
+ * Si on tombe sur une zone épaisse qui diffère (> 15px), c'est du texte/indices → stop.
+ */
+export function expandCornersToGridEdges(
+  imageData: ImageData,
+  p1: Point,
+  p2: Point,
+  debug = false,
+): [Point, Point] {
+  const { width, height, data } = imageData
+  const MAX_SEARCH = 300
+  const THRESHOLD = 0.08
+
+  function refLuminosity(cx: number, cy: number): number {
+    let sum = 0
+    let count = 0
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const x = Math.max(0, Math.min(width - 1, Math.round(cx) + dx))
+        const y = Math.max(0, Math.min(height - 1, Math.round(cy) + dy))
+        sum += getLuminosity(data, width, x, y)
+        count++
+      }
+    }
+    return sum / count
+  }
+
+  /**
+   * Cherche le premier trait en partant de startPos dans la direction step.
+   * Retourne la position juste après le premier trait fin trouvé.
+   * Utilisé vers le haut et la gauche (direction des indices).
+   */
+  function findFirstEdge(
+    startPos: number,
+    fixedPos: number,
+    step: number,
+    horizontal: boolean,
+    refLum: number,
+  ): number {
+    let inEdge = false
+    let edgeStart = 0
+
+    for (let i = 1; i <= MAX_SEARCH; i++) {
+      const pos = startPos + step * i
+      if (step > 0 && pos >= (horizontal ? width - 1 : height - 1)) break
+      if (step < 0 && pos <= 0) break
+
+      const x = horizontal ? pos : fixedPos
+      const y = horizontal ? fixedPos : pos
+      const lum = getLuminosity(data, width, x, y)
+      const diff = Math.abs(lum - refLum)
+
+      if (!inEdge && diff > THRESHOLD) {
+        inEdge = true
+        edgeStart = pos
+      } else if (inEdge && diff <= THRESHOLD) {
+        const edgeWidth = Math.abs(pos - edgeStart)
+        if (edgeWidth <= 5) return pos // trait de grille (1-5px)
+        break // zone épaisse (chiffre, texte)
+      }
+    }
+
+    return startPos // aucun trait trouvé, garder la position d'origine
+  }
+
+  /**
+   * Cherche le dernier trait en partant de startPos dans la direction step.
+   * Traverse tous les traits fins et retourne la position après le dernier.
+   * Utilisé vers le bas et la droite (bord extérieur de la grille).
+   */
+  function findLastEdge(
+    startPos: number,
+    fixedPos: number,
+    step: number,
+    horizontal: boolean,
+    refLum: number,
+  ): number {
+    let lastEdgeEnd = startPos
+    let inEdge = false
+    let edgeStart = 0
+
+    for (let i = 1; i <= MAX_SEARCH; i++) {
+      const pos = startPos + step * i
+      if (step > 0 && pos >= (horizontal ? width - 1 : height - 1)) break
+      if (step < 0 && pos <= 0) break
+
+      const x = horizontal ? pos : fixedPos
+      const y = horizontal ? fixedPos : pos
+      const lum = getLuminosity(data, width, x, y)
+      const diff = Math.abs(lum - refLum)
+
+      if (!inEdge && diff > THRESHOLD) {
+        inEdge = true
+        edgeStart = pos
+      } else if (inEdge && diff <= THRESHOLD) {
+        inEdge = false
+        const edgeWidth = Math.abs(pos - edgeStart)
+        if (edgeWidth > 15) break // zone épaisse (texte, hors grille)
+        lastEdgeEnd = pos
+      }
+    }
+
+    return lastEdgeEnd
+  }
+
+  const x1 = Math.round(Math.min(p1.x, p2.x))
+  const y1 = Math.round(Math.min(p1.y, p2.y))
+  const x2 = Math.round(Math.max(p1.x, p2.x))
+  const y2 = Math.round(Math.max(p1.y, p2.y))
+
+  const midY = Math.round((y1 + y2) / 2)
+  const midX = Math.round((x1 + x2) / 2)
+
+  const refLumH = (refLuminosity(x1, midY) + refLuminosity(x2, midY)) / 2
+  const refLumV = (refLuminosity(midX, y1) + refLuminosity(midX, y2)) / 2
+
+  // Vers les indices (haut, gauche) : premier trait seulement
+  const left = findFirstEdge(x1, midY, -1, true, refLumH)
+  const top = findFirstEdge(y1, midX, -1, false, refLumV)
+  // Vers l'extérieur (bas, droite) : dernier trait
+  const right = findLastEdge(x2, midY, 1, true, refLumH)
+  const bottom = findLastEdge(y2, midX, 1, false, refLumV)
+
+  const result: [Point, Point] = [
+    { x: left, y: top },
+    { x: right, y: bottom },
+  ]
+  if (debug) {
+    console.log('[expand] input', { p1, p2 })
+    console.log('[expand] refLum', { H: refLumH.toFixed(3), V: refLumV.toFixed(3) })
+    console.log('[expand] result', { left, top, right, bottom })
+  }
+  return result
+}
+
+// ---------------------------------------------------------------------------
+// Analyse de bandes (debug) — parcourt la grille pixel par pixel
+// ---------------------------------------------------------------------------
+
+interface Band {
+  /** Luminosité moyenne de la bande (0-1) */
+  lum: number
+  /** Largeur en pixels */
+  width: number
+}
+
+/**
+ * Parcourt une ligne de l'image et retourne les bandes de luminosité homogène.
+ * Ex: [{lum:0.95, width:2}, {lum:0.4, width:30}, {lum:0.92, width:2}, ...]
+ * = trait 2px, case 30px, trait 2px, ...
+ */
+function scanBands(imageData: ImageData, pos: number, horizontal: boolean): Band[] {
+  const { width, height, data } = imageData
+  const len = horizontal ? width : height
+  const bands: Band[] = []
+  const TOLERANCE = 0.06
+
+  let bandStart = 0
+  let bandLum = getLuminosity(data, width, horizontal ? 0 : pos, horizontal ? pos : 0)
+
+  for (let i = 1; i < len; i++) {
+    const x = horizontal ? i : pos
+    const y = horizontal ? pos : i
+    const lum = getLuminosity(data, width, x, y)
+
+    if (Math.abs(lum - bandLum) > TOLERANCE) {
+      bands.push({ lum: bandLum, width: i - bandStart })
+      bandStart = i
+      bandLum = lum
+    } else {
+      // Moyenne glissante de la luminosité de la bande
+      bandLum = (bandLum * (i - bandStart) + lum) / (i - bandStart + 1)
+    }
+  }
+  bands.push({ lum: bandLum, width: len - bandStart })
+
+  return bands
+}
+
+/**
+ * Analyse la structure de bandes de la zone croppée et affiche le résultat en console.
+ */
+function debugBandAnalysis(imageData: ImageData, log: (...args: unknown[]) => void): void {
+  const { width, height } = imageData
+  const sampleCount = 3
+
+  log('=== BAND ANALYSIS ===')
+  log(`image size: ${width} × ${height}`)
+
+  // Scans horizontaux
+  for (let s = 0; s < sampleCount; s++) {
+    const y = Math.floor((height * (s + 1)) / (sampleCount + 1))
+    const bands = scanBands(imageData, y, true)
+    const widths = bands.map((b) => b.width)
+    const sorted = [...widths].sort((a, b) => b - a)
+    const large = widths.filter((w) => w > 5)
+    log(
+      `H y=${y}: ${widths.join(' ')} → ${large.length} large bands (top: ${sorted.slice(0, 5).join(', ')})`,
+    )
+  }
+
+  // Scans verticaux
+  for (let s = 0; s < sampleCount; s++) {
+    const x = Math.floor((width * (s + 1)) / (sampleCount + 1))
+    const bands = scanBands(imageData, x, false)
+    const widths = bands.map((b) => b.width)
+    const sorted = [...widths].sort((a, b) => b - a)
+    const large = widths.filter((w) => w > 5)
+    log(
+      `V x=${x}: ${widths.join(' ')} → ${large.length} large bands (top: ${sorted.slice(0, 5).join(', ')})`,
+    )
+  }
+
+  log('=== END BAND ANALYSIS ===')
+}
+
+/**
+ * Détecte la grille par analyse de bandes de luminosité.
+ * Identifie l'alternance trait/case, en déduit le nombre de cases et leurs positions.
+ * Retourne un GridStructure avec les positions des lignes de séparation.
+ */
+function detectGridByBands(imageData: ImageData): GridStructure | null {
+  const { width, height } = imageData
+  const sampleCount = 3
+
+  function extractCellPositions(bands: Band[]): number[] | null {
+    if (bands.length < 5) return null
+
+    // Trouver la largeur médiane des grandes bandes (cases)
+    const widths = bands.map((b) => b.width)
+    const sorted = [...widths].sort((a, b) => b - a)
+    // La largeur "case" est la plus fréquente parmi les grandes bandes
+    const largeBands = widths.filter((w) => w > sorted[0] * 0.5)
+    if (largeBands.length < 3) return null
+    const medianCell = largeBands.sort((a, b) => a - b)[Math.floor(largeBands.length / 2)]
+
+    // Seuil : une bande est une "case" si sa largeur > 50% de la médiane
+    const cellThreshold = medianCell * 0.5
+
+    // Parcourir les bandes et extraire les positions des séparations
+    const lines: number[] = []
+    let pos = 0
+    for (const band of bands) {
+      if (band.width >= cellThreshold) {
+        // C'est une case — les lignes de grille sont aux bords
+        lines.push(pos)
+        lines.push(pos + band.width)
+      }
+      pos += band.width
+    }
+
+    // Dédupliquer les positions proches (< 8px)
+    const deduped: number[] = [lines[0]]
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i] - deduped[deduped.length - 1] >= 8) {
+        deduped.push(lines[i])
+      }
+    }
+
+    return deduped.length >= 4 ? deduped : null
+  }
+
+  // Scanner horizontalement à plusieurs hauteurs, garder le meilleur
+  let bestColLines: number[] | null = null
+  for (let s = 0; s < sampleCount; s++) {
+    const y = Math.floor((height * (s + 1)) / (sampleCount + 1))
+    const bands = scanBands(imageData, y, true)
+    const positions = extractCellPositions(bands)
+    if (positions && (!bestColLines || positions.length > bestColLines.length)) {
+      bestColLines = positions
+    }
+  }
+
+  // Scanner verticalement à plusieurs positions
+  let bestRowLines: number[] | null = null
+  for (let s = 0; s < sampleCount; s++) {
+    const x = Math.floor((width * (s + 1)) / (sampleCount + 1))
+    const bands = scanBands(imageData, x, false)
+    const positions = extractCellPositions(bands)
+    if (positions && (!bestRowLines || positions.length > bestRowLines.length)) {
+      bestRowLines = positions
+    }
+  }
+
+  if (!bestColLines || !bestRowLines) return null
+  if (bestColLines.length < 4 || bestColLines.length > 25) return null
+  if (bestRowLines.length < 4 || bestRowLines.length > 25) return null
+
+  return { rowLines: bestRowLines, colLines: bestColLines }
+}
+
+// ---------------------------------------------------------------------------
 // Points d'entrée publics
 // ---------------------------------------------------------------------------
 
@@ -532,61 +1074,89 @@ export function extractGridCells(
   imageData: ImageData,
   p1: Point,
   p2: Point,
+  debug = false,
 ): GridCellsResult | null {
+  const log = debug ? (...args: unknown[]) => console.log('[grid]', ...args) : () => {}
+
   const origX1 = Math.round(Math.min(p1.x, p2.x))
   const origY1 = Math.round(Math.min(p1.y, p2.y))
   const origX2 = Math.round(Math.max(p1.x, p2.x))
   const origY2 = Math.round(Math.max(p1.y, p2.y))
+  log('selection', { origX1, origY1, origX2, origY2, w: origX2 - origX1, h: origY2 - origY1 })
 
   const canvas = imageDataToCanvas(imageData)
 
-  // Analyse de la couleur sur la zone croppée (pas l'image complète qui peut
-  // avoir des éléments UI colorés autour de la grille N&B)
   const croppedForColor = cropCanvas(canvas, origX1, origY1, origX2 - origX1, origY2 - origY1)
     .getContext('2d')!
     .getImageData(0, 0, origX2 - origX1, origY2 - origY1)
   const colored = isColorImage(croppedForColor)
-  const detect = colored ? detectGridStructureExtended : detectGridStructure
+  log('isColor', colored)
 
-  // Tente la détection avec la sélection exacte, puis en élargissant par paliers
-  // de 5 px pour capturer les lignes extérieures coupées par un cadrage serré.
-  const EXPAND_PX = [0, 5, 10, 15]
-  let grid: GridStructure | null = null
+  if (debug) debugBandAnalysis(croppedForColor, log)
+
   let x1 = origX1
   let y1 = origY1
   let selW = origX2 - origX1
   let selH = origY2 - origY1
+  let grid: GridStructure | null = null
 
-  for (const pad of EXPAND_PX) {
-    x1 = Math.max(0, origX1 - pad)
-    y1 = Math.max(0, origY1 - pad)
-    const ex2 = Math.min(imageData.width, origX2 + pad)
-    const ey2 = Math.min(imageData.height, origY2 + pad)
-    selW = ex2 - x1
-    selH = ey2 - y1
+  if (colored) {
+    // Priorité : analyse de bandes (la plus fiable sur les grilles couleur)
+    grid = detectGridByBands(croppedForColor)
+    log('bands', grid ? `${grid.rowLines.length}r × ${grid.colLines.length}c` : 'null')
 
-    const croppedData = cropCanvas(canvas, x1, y1, selW, selH)
-      .getContext('2d')!
-      .getImageData(0, 0, selW, selH)
+    if (!grid) {
+      grid = detectGridByHueScan(croppedForColor)
+      log('hueScan', grid ? `${grid.rowLines.length}r × ${grid.colLines.length}c` : 'null')
+    }
 
-    grid = detect(croppedData)
-    if (grid) break
+    if (!grid) {
+      grid = detectGridStructureExtended(croppedForColor)
+      log('extended', grid ? `${grid.rowLines.length}r × ${grid.colLines.length}c` : 'null')
+    }
   }
 
-  if (!grid) return null
+  if (!grid) {
+    const EXPAND_PX = [0, 5, 10, 15]
+    for (const pad of EXPAND_PX) {
+      x1 = Math.max(0, origX1 - pad)
+      y1 = Math.max(0, origY1 - pad)
+      const ex2 = Math.min(imageData.width, origX2 + pad)
+      const ey2 = Math.min(imageData.height, origY2 + pad)
+      selW = ex2 - x1
+      selH = ey2 - y1
 
-  // N+1 lignes bornent N cases
+      const croppedData = cropCanvas(canvas, x1, y1, selW, selH)
+        .getContext('2d')!
+        .getImageData(0, 0, selW, selH)
+
+      grid = detectGridStructure(croppedData)
+      log(`dark pad=${pad}`, grid ? `${grid.rowLines.length}r × ${grid.colLines.length}c` : 'null')
+      if (grid) break
+    }
+  }
+
+  if (!grid) {
+    log('FAILED — no grid found')
+    return null
+  }
+
   const nRows = grid.rowLines.length - 1
   const nCols = grid.colLines.length - 1
   if (nRows < 2 || nCols < 2) return null
+  log('final grid', `${nRows} rows × ${nCols} cols`)
 
-  // Taille uniforme des cases (en px dans l'image originale)
-  const cellW = selW / nCols
-  const cellH = selH / nRows
+  // Positions des lignes dans l'image originale (décaler les coordonnées croppées)
+  const absColLines = grid.colLines.map((c) => x1 + c)
+  const absRowLines = grid.rowLines.map((r) => y1 + r)
+
+  // Taille moyenne d'une case (pour les zones d'indices)
+  const avgCellW = (absColLines[absColLines.length - 1] - absColLines[0]) / nCols
+  const avgCellH = (absRowLines[absRowLines.length - 1] - absRowLines[0]) / nRows
 
   // Zone d'indices disponible : jusqu'à 2 cases, limitée par les bords de l'image
-  const clueW = Math.min(x1, Math.ceil(cellW * 2))
-  const clueH = Math.min(y1, Math.ceil(cellH * 2))
+  const clueW = Math.min(x1, Math.ceil(avgCellW * 2))
+  const clueH = Math.min(y1, Math.ceil(avgCellH * 2))
 
   /** Extrait et retourne une data URL pour une sous-région de l'image originale */
   const cell = (cx: number, cy: number, cw: number, ch: number): string => {
@@ -607,18 +1177,26 @@ export function extractGridCells(
     return c.toDataURL('image/png')
   }
 
+  // Découper chaque case en utilisant les positions exactes des lignes
   const interiorCells: string[][] = Array.from({ length: nRows }, (_, i) =>
-    Array.from({ length: nCols }, (_, j) => cell(x1 + j * cellW, y1 + i * cellH, cellW, cellH)),
+    Array.from({ length: nCols }, (_, j) =>
+      cell(
+        absColLines[j],
+        absRowLines[i],
+        absColLines[j + 1] - absColLines[j],
+        absRowLines[i + 1] - absRowLines[i],
+      ),
+    ),
   )
 
-  // Cases d'indices colonnes (au-dessus)
+  // Cases d'indices colonnes (au-dessus de la grille)
   const colClueCells: string[] = Array.from({ length: nCols }, (_, j) =>
-    cell(x1 + j * cellW, y1 - clueH, cellW, clueH),
+    cell(absColLines[j], absRowLines[0] - clueH, absColLines[j + 1] - absColLines[j], clueH),
   )
 
-  // Cases d'indices lignes (à gauche)
+  // Cases d'indices lignes (à gauche de la grille)
   const rowClueCells: string[] = Array.from({ length: nRows }, (_, i) =>
-    cell(x1 - clueW, y1 + i * cellH, clueW, cellH),
+    cell(absColLines[0] - clueW, absRowLines[i], clueW, absRowLines[i + 1] - absRowLines[i]),
   )
 
   return { nRows, nCols, colClueCells, rowClueCells, interiorCells, colored }
@@ -637,15 +1215,21 @@ export async function recognizeAllClueCells(
   const total = nCols + nRows
 
   const { createWorker } = await import('tesseract.js')
-  const worker = await createWorker('eng', 1, { logger: () => {} })
-  // PSM 6 : bloc de texte uniforme — adapté à 1-2 chiffres par cellule,
-  // qu'ils soient sur une ligne (indices lignes) ou empilés (indices colonnes).
-  await worker.setParameters({
-    tessedit_char_whitelist: '0123456789 ',
-    tessedit_pageseg_mode: '6' as unknown as Parameters<
-      typeof worker.setParameters
-    >[0]['tessedit_pageseg_mode'],
-  })
+
+  const OCR_TIMEOUT = 10_000
+
+  async function makeWorker() {
+    const w = await createWorker('eng', 1, { logger: () => {} })
+    await w.setParameters({
+      tessedit_char_whitelist: '0123456789 ',
+      tessedit_pageseg_mode: '6' as unknown as Parameters<
+        typeof w.setParameters
+      >[0]['tessedit_pageseg_mode'],
+    })
+    return w
+  }
+
+  let worker = await makeWorker()
 
   const processCell = async (url: string): Promise<string> => {
     const img = await loadImageFromUrl(url)
@@ -654,14 +1238,22 @@ export async function recognizeAllClueCells(
     canvas.height = img.naturalHeight
     canvas.getContext('2d')!.drawImage(img, 0, 0)
 
-    // Pipeline : normalisation → suppression traits de grille → rognage contenu
     const cleaned = cropToContent(removeGridLines(adaptiveNormalize(canvas)))
-
-    // Agrandir jusqu'à au moins 128px sur le plus petit côté
     const factor = Math.max(2, Math.ceil(128 / Math.min(cleaned.width, cleaned.height)))
     const prepared = addWhitePadding(upscaleCanvas(cleaned, factor), 16)
 
-    const result = await worker.recognize(prepared)
+    const result = await Promise.race([
+      worker.recognize(prepared),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), OCR_TIMEOUT)),
+    ])
+
+    if (!result) {
+      // Le worker est bloqué — le tuer et en recréer un
+      await worker.terminate().catch(() => {})
+      worker = await makeWorker()
+      return ''
+    }
+
     return result.data.text
       .trim()
       .replace(/[^0-9\n ]/g, '')

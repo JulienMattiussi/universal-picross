@@ -66,7 +66,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
     setPhase('extracting' as Phase)
     setTimeout(() => {
       try {
-        const cells = extractGridCells(imageData, p1, p2)
+        const cells = extractGridCells(imageData, p1, p2, debug)
         if (!cells) {
           setError(t.import.errorGridDetect)
           setPhase('selecting')

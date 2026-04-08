@@ -53,7 +53,9 @@ export const fr: TranslationKeys = {
   },
   corner: {
     instruction1: 'Cliquez sur le premier coin de la grille (ex : coin haut-gauche).',
+    instruction1cell: 'Cliquez dans une case en haut à gauche de la grille.',
     instruction2: 'Cliquez sur le coin opposé (ex : coin bas-droit).',
+    instruction2cell: 'Cliquez dans une case en bas à droite de la grille.',
     instructionAuto: 'Grille détectée automatiquement. Ajustez si nécessaire, puis validez.',
     instructionManual: 'Glissez les points pour ajuster, puis validez.',
     validateSelection: 'Valider la sélection',

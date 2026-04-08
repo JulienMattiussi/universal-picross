@@ -53,7 +53,9 @@ export const es: TranslationKeys = {
   },
   corner: {
     instruction1: 'Haz clic en la primera esquina de la cuadrícula (ej. arriba a la izquierda).',
+    instruction1cell: 'Haz clic dentro de una celda arriba a la izquierda de la cuadrícula.',
     instruction2: 'Haz clic en la esquina opuesta (ej. abajo a la derecha).',
+    instruction2cell: 'Haz clic dentro de una celda abajo a la derecha de la cuadrícula.',
     instructionAuto: 'Cuadrícula detectada automáticamente. Ajusta si es necesario y confirma.',
     instructionManual: 'Arrastra los puntos para ajustar, luego confirma.',
     validateSelection: 'Confirmar selección',

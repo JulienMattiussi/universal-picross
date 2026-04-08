@@ -60,7 +60,9 @@ export interface TranslationKeys {
 
   corner: {
     instruction1: string
+    instruction1cell: string
     instruction2: string
+    instruction2cell: string
     instructionAuto: string
     instructionManual: string
     validateSelection: string

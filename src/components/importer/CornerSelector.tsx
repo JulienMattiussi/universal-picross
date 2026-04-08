@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '@/components/ui/Button'
-import type { Point } from '@/lib/imageProcessor'
+import { expandCornersToGridEdges, type Point } from '@/lib/imageProcessor'
 import { useTranslation } from '@/i18n/useTranslation'
+import { useDebugStore } from '@/store/debugStore'
 
 interface CornerSelectorProps {
   imageData: ImageData
@@ -24,6 +25,7 @@ export default function CornerSelector({
   // Index du coin en cours de déplacement (-1 = aucun). Ref pour ne pas retriggerer les effets.
   const draggingIdx = useRef<number>(-1)
   const t = useTranslation()
+  const { debug } = useDebugStore()
   const [cursor, setCursor] = useState<'crosshair' | 'grab' | 'grabbing'>('crosshair')
 
   const MAX_W = 560
@@ -152,18 +154,15 @@ export default function CornerSelector({
     const canvas = canvasRef.current!
     const sx = imageData.width / canvas.width
     const sy = imageData.height / canvas.height
-    onConfirm(
-      { x: corners[0].x * sx, y: corners[0].y * sy },
-      {
-        x: corners[1].x * sx,
-        y: corners[1].y * sy,
-      },
-    )
+    const rawP1 = { x: corners[0].x * sx, y: corners[0].y * sy }
+    const rawP2 = { x: corners[1].x * sx, y: corners[1].y * sy }
+    const [p1, p2] = expandCornersToGridEdges(imageData, rawP1, rawP2, debug)
+    onConfirm(p1, p2)
   }
 
   const instructions = [
-    t.corner.instruction1,
-    t.corner.instruction2,
+    t.corner.instruction1cell,
+    t.corner.instruction2cell,
     initialCorners ? t.corner.instructionAuto : t.corner.instructionManual,
   ]
 

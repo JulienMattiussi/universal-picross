@@ -53,7 +53,9 @@ export const de: TranslationKeys = {
   },
   corner: {
     instruction1: 'Klicken Sie auf die erste Ecke des Rasters (z.B. oben links).',
+    instruction1cell: 'Klicken Sie in eine Zelle oben links im Raster.',
     instruction2: 'Klicken Sie auf die gegenüberliegende Ecke (z.B. unten rechts).',
+    instruction2cell: 'Klicken Sie in eine Zelle unten rechts im Raster.',
     instructionAuto: 'Raster automatisch erkannt. Passen Sie es bei Bedarf an und bestätigen Sie.',
     instructionManual: 'Ziehen Sie die Punkte zum Anpassen, dann bestätigen.',
     validateSelection: 'Auswahl bestätigen',
