@@ -79,7 +79,7 @@ export default function GameGrid({
   }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 && e.button !== 2) return
     const cell = getCellAt(e.clientX, e.clientY)
     if (!cell) return
     const [r, c] = cell
@@ -88,7 +88,10 @@ export default function GameGrid({
     gridRef.current?.setPointerCapture(e.pointerId)
 
     let action: 'fill' | 'unfill' | 'mark' | 'unmark' | 'erase'
-    if (inputMode === 'erase') {
+    if (e.button === 2) {
+      // Clic droit → toujours mark/unmark
+      action = grid[r][c] === 'marked' ? 'unmark' : 'mark'
+    } else if (inputMode === 'erase') {
       action = 'erase'
     } else if (inputMode === 'mark') {
       action = grid[r][c] === 'marked' ? 'unmark' : 'mark'
@@ -97,8 +100,8 @@ export default function GameGrid({
     }
     dragRef.current = { action, visited: new Set(), origin: [r, c], active: false }
 
-    // Long-press uniquement en mode fill (bascule vers mark)
-    if (inputMode === 'fill') {
+    // Long-press uniquement en mode fill + clic gauche (bascule vers mark)
+    if (e.button === 0 && inputMode === 'fill') {
       longPressRef.current = setTimeout(() => {
         longPressRef.current = null
         dragRef.current = null
@@ -129,11 +132,12 @@ export default function GameGrid({
   const handlePointerUp = () => {
     cancelLongPress()
     if (dragRef.current && !dragRef.current.active) {
-      // Simple tap : action selon le mode actif
+      // Simple tap : exécuter l'action déterminée au pointerDown
       const [r, c] = dragRef.current.origin
-      if (inputMode === 'erase') {
+      const { action } = dragRef.current
+      if (action === 'erase') {
         onClear(r, c)
-      } else if (inputMode === 'mark') {
+      } else if (action === 'mark' || action === 'unmark') {
         onMark(r, c)
       } else {
         if (grid[r][c] !== 'marked') onFill(r, c)
@@ -144,8 +148,6 @@ export default function GameGrid({
 
   const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault()
-    const cell = getCellAt(e.clientX, e.clientY)
-    if (cell) onMark(cell[0], cell[1])
   }
 
   return (
