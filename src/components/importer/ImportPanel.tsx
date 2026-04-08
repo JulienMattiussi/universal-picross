@@ -55,7 +55,8 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
     setError(null)
     // Détection automatique des bords de la grille (non bloquant)
     setTimeout(() => {
-      const bounds = detectGridBounds(data)
+      const isDebug = useDebugStore.getState().debug
+      const bounds = detectGridBounds(data, isDebug)
       if (bounds) setDetectedCorners(bounds)
     }, 0)
   }
@@ -129,7 +130,16 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
     puzzle.clues.rows = rowClues
     puzzle.clues.cols = colClues
     const solution = solve(puzzle)
-    if (solution) puzzle.solution = solution
+    if (!solution) {
+      // Grille non solvable → correction manuelle
+      setRecognizedValues({
+        rows: rowClues.map((c) => c.join(' ')),
+        cols: colClues.map((c) => c.join(' ')),
+      })
+      setPhase('correcting')
+      return
+    }
+    puzzle.solution = solution
     loadPuzzle(puzzle)
     reset()
     resetAll()

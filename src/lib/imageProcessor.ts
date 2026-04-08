@@ -382,14 +382,130 @@ export function detectGridStructureExtended(imageData: ImageData): GridStructure
  * Retourne les deux coins opposés (haut-gauche, bas-droit) en coordonnées image,
  * ou null si aucune grille régulière n'est trouvée.
  */
-export function detectGridBounds(imageData: ImageData): [Point, Point] | null {
+export function detectGridBounds(imageData: ImageData, debug = false): [Point, Point] | null {
+  const log = debug ? (...args: unknown[]) => console.log('[bounds]', ...args) : () => {}
+
+  // Stratégie 1 : lignes sombres (grilles N&B)
   const grid = detectGridStructureDark(imageData)
-  if (!grid) return null
-  const { rowLines, colLines } = grid
-  if (rowLines.length < 4 || colLines.length < 4) return null
+  log('dark', grid ? `${grid.rowLines.length}r × ${grid.colLines.length}c` : 'null')
+  if (grid && grid.rowLines.length >= 4 && grid.colLines.length >= 4) {
+    const result: [Point, Point] = [
+      { x: grid.colLines[0], y: grid.rowLines[0] },
+      { x: grid.colLines[grid.colLines.length - 1], y: grid.rowLines[grid.rowLines.length - 1] },
+    ]
+    log('result (dark)', result)
+    return result
+  }
+
+  // Stratégie 2 : scan de contrastes depuis les bords (grilles couleur)
+  const edgeResult = detectGridBoundsByEdgeScan(imageData, log)
+  log('result (edgeScan)', edgeResult)
+  return edgeResult
+}
+
+/**
+ * Détecte les bords de la grille en scannant depuis les 4 bords de l'image vers l'intérieur.
+ * Sur plusieurs lignes parallèles, cherche la première position où un contraste
+ * apparaît de manière cohérente (même position ± tolérance sur toutes les lignes).
+ */
+function detectGridBoundsByEdgeScan(
+  imageData: ImageData,
+  log: (...args: unknown[]) => void = () => {},
+): [Point, Point] | null {
+  const { width, height, data } = imageData
+  const SAMPLE_COUNT = 10
+  const THRESHOLD = 0.08
+  const TOLERANCE = 10
+
+  log('edgeScan start', { width, height, threshold: THRESHOLD })
+
+  function findEdge(label: string, horizontal: boolean, fromStart: boolean): number | null {
+    const scanLen = horizontal ? width : height
+    const crossLen = horizontal ? height : width
+    const positions: number[] = []
+    const refLums: number[] = []
+
+    for (let s = 0; s < SAMPLE_COUNT; s++) {
+      const crossPos = Math.floor((crossLen * (s + 1)) / (SAMPLE_COUNT + 1))
+
+      const refIdx = fromStart ? 0 : scanLen - 1
+      const rx = horizontal ? refIdx : crossPos
+      const ry = horizontal ? crossPos : refIdx
+      const refLum = getLuminosity(data, width, rx, ry)
+      refLums.push(refLum)
+
+      let found = false
+      for (let i = 0; i < scanLen; i++) {
+        const pos = fromStart ? i : scanLen - 1 - i
+        const x = horizontal ? pos : crossPos
+        const y = horizontal ? crossPos : pos
+        const lum = getLuminosity(data, width, x, y)
+
+        if (Math.abs(lum - refLum) > THRESHOLD) {
+          positions.push(pos)
+          found = true
+          break
+        }
+      }
+      if (!found) positions.push(-1)
+    }
+
+    log(
+      `  ${label}: refLums=[${refLums.map((l) => l.toFixed(2)).join(', ')}] positions=[${positions.join(', ')}]`,
+    )
+
+    const valid = positions.filter((p) => p >= 0)
+    if (valid.length < 2) {
+      log(`  ${label}: FAILED — only ${valid.length} valid positions`)
+      return null
+    }
+
+    // Pour les bords "fromStart" (left, top), la grille est plus loin que le texte
+    // → chercher le groupe de positions les plus éloignées du bord.
+    // Pour les bords "fromEnd" (right, bottom), la grille est plus loin aussi
+    // → chercher le groupe le plus éloigné.
+    valid.sort((a, b) => a - b)
+
+    // Grouper les positions proches (± tolérance)
+    const groups: number[][] = []
+    for (const p of valid) {
+      const lastGroup = groups[groups.length - 1]
+      if (lastGroup && Math.abs(p - lastGroup[lastGroup.length - 1]) <= TOLERANCE) {
+        lastGroup.push(p)
+      } else {
+        groups.push([p])
+      }
+    }
+
+    // Pour fromStart (left, top) : la grille est plus loin du bord que le texte
+    // → prendre le dernier groupe (le plus éloigné) qui a au moins 2 membres.
+    // Pour fromEnd (right, bottom) : prendre le premier groupe (le plus éloigné du bord opposé).
+    const ordered = fromStart ? [...groups].reverse() : groups
+    const bestGroup = ordered.find((g) => g.length >= 2)
+
+    if (!bestGroup) {
+      log(`  ${label}: FAILED — no group with >= 2 positions`)
+      return null
+    }
+
+    const result = Math.round(bestGroup.reduce((a, b) => a + b, 0) / bestGroup.length)
+    log(`  ${label}: OK pos=${result} (group of ${bestGroup.length})`)
+    return result
+  }
+
+  const left = findEdge('left', true, true)
+  const right = findEdge('right', true, false)
+  const top = findEdge('top', false, true)
+  const bottom = findEdge('bottom', false, false)
+
+  log('edgeScan results', { left, right, top, bottom })
+
+  if (left == null || right == null || top == null || bottom == null) return null
+  if (right - left < 50 || bottom - top < 50) return null
+
   return [
-    { x: colLines[0], y: rowLines[0] },
-    { x: colLines[colLines.length - 1], y: rowLines[rowLines.length - 1] },
+    { x: left, y: top },
+    { x: right, y: bottom },
   ]
 }
 
