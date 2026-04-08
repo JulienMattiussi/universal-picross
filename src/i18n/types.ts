@@ -23,6 +23,7 @@ export interface TranslationKeys {
     medium: string
     hard: string
     generateButton: string
+    generating: string
   }
 
   game: {

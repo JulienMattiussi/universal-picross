@@ -9,8 +9,8 @@ function makePlayGrid(rows: number, cols: number): PlayGrid {
 }
 
 describe('GameBoard', () => {
-  it('rend la grille et les indices', () => {
-    const puzzle = generatePuzzle(5)
+  it('rend la grille et les indices', async () => {
+    const puzzle = await generatePuzzle(5)
     const grid = makePlayGrid(5, 5)
     render(<GameBoard puzzle={puzzle} grid={grid} onFill={vi.fn()} onMark={vi.fn()} />)
     expect(screen.getByRole('grid')).toBeInTheDocument()

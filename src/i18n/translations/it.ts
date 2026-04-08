@@ -20,6 +20,7 @@ export const it: TranslationKeys = {
     medium: 'Medio',
     hard: 'Difficile',
     generateButton: 'Genera',
+    generating: 'Generazione in corso…',
   },
   game: {
     bravo: 'Bravo!',

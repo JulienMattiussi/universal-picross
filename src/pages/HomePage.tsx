@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Button from '@/components/ui/Button'
+import Spinner from '@/components/ui/Spinner'
 import { generatePuzzle, type Difficulty } from '@/lib/generator'
 import { useGame } from '@/hooks/useGame'
 import { useTranslation } from '@/i18n/useTranslation'
@@ -17,6 +18,8 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
   const t = useTranslation()
   const [size, setSize] = useState(10)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const [generating, setGenerating] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
   const difficulties: { value: Difficulty; label: string }[] = [
     { value: 'easy', label: t.home.easy },
@@ -24,10 +27,31 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
     { value: 'hard', label: t.home.hard },
   ]
 
-  const handleGenerate = () => {
-    const puzzle = generatePuzzle(size, difficulty)
-    loadPuzzle(puzzle)
-    onGenerated()
+  const handleGenerate = async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setGenerating(true)
+    try {
+      const puzzle = await generatePuzzle(size, difficulty, 100, controller.signal)
+      if (!controller.signal.aborted) {
+        loadPuzzle(puzzle)
+        onGenerated()
+      }
+    } catch {
+      /* AbortError — ignoré */
+    } finally {
+      if (abortRef.current === controller) {
+        setGenerating(false)
+        abortRef.current = null
+      }
+    }
+  }
+
+  const handleCancel = () => {
+    abortRef.current?.abort()
+    abortRef.current = null
+    setGenerating(false)
   }
 
   return (
@@ -56,82 +80,95 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
       </header>
 
       <div className="w-full max-w-sm flex flex-col gap-4">
-        <button
-          onClick={() => onImport('image')}
-          className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
-        >
-          <span className="text-3xl">📂</span>
-          <div>
-            <span className="font-semibold text-gray-900 block">{t.home.openImage}</span>
-            <span className="text-sm text-gray-500">{t.home.openImageDesc}</span>
+        {/* Loader de génération */}
+        {generating ? (
+          <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-xl border border-gray-200 shadow-sm">
+            <Spinner />
+            <span className="text-sm text-gray-600 font-medium">{t.home.generating}</span>
+            <Button variant="secondary" size="sm" onClick={handleCancel}>
+              {t.common.cancel}
+            </Button>
           </div>
-        </button>
+        ) : (
+          <>
+            <button
+              onClick={() => onImport('image')}
+              className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
+            >
+              <span className="text-3xl">📂</span>
+              <div>
+                <span className="font-semibold text-gray-900 block">{t.home.openImage}</span>
+                <span className="text-sm text-gray-500">{t.home.openImageDesc}</span>
+              </div>
+            </button>
 
-        <button
-          onClick={() => onImport('camera')}
-          className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
-        >
-          <span className="text-3xl">📷</span>
-          <div>
-            <span className="font-semibold text-gray-900 block">{t.home.takePhoto}</span>
-            <span className="text-sm text-gray-500">{t.home.takePhotoDesc}</span>
-          </div>
-        </button>
+            <button
+              onClick={() => onImport('camera')}
+              className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
+            >
+              <span className="text-3xl">📷</span>
+              <div>
+                <span className="font-semibold text-gray-900 block">{t.home.takePhoto}</span>
+                <span className="text-sm text-gray-500">{t.home.takePhotoDesc}</span>
+              </div>
+            </button>
 
-        <div className="flex flex-col gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-4">
-            <span className="text-3xl">🎲</span>
-            <div>
-              <span className="font-semibold text-gray-900 block">{t.home.generate}</span>
-              <span className="text-sm text-gray-500">{t.home.generateDesc}</span>
+            <div className="flex flex-col gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-4">
+                <span className="text-3xl">🎲</span>
+                <div>
+                  <span className="font-semibold text-gray-900 block">{t.home.generate}</span>
+                  <span className="text-sm text-gray-500">{t.home.generateDesc}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm text-gray-600">
+                  {t.home.sizeLabel} :{' '}
+                  <span className="font-medium">
+                    {size}×{size}
+                  </span>
+                </label>
+                <input
+                  type="range"
+                  min={5}
+                  max={20}
+                  value={size}
+                  onChange={(e) => setSize(Number(e.target.value))}
+                  className="accent-primary-500"
+                />
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>5</span>
+                  <span>20</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-sm text-gray-600">{t.home.difficulty}</span>
+                <div className="flex gap-2">
+                  {difficulties.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      className={[
+                        'flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
+                        difficulty === value
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-primary-50',
+                      ].join(' ')}
+                      onClick={() => setDifficulty(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={handleGenerate} className="w-full">
+                {t.home.generateButton}
+              </Button>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-sm text-gray-600">
-              {t.home.sizeLabel} :{' '}
-              <span className="font-medium">
-                {size}×{size}
-              </span>
-            </label>
-            <input
-              type="range"
-              min={5}
-              max={20}
-              value={size}
-              onChange={(e) => setSize(Number(e.target.value))}
-              className="accent-primary-500"
-            />
-            <div className="flex justify-between text-xs text-gray-400">
-              <span>5</span>
-              <span>20</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="text-sm text-gray-600">{t.home.difficulty}</span>
-            <div className="flex gap-2">
-              {difficulties.map(({ value, label }) => (
-                <button
-                  key={value}
-                  className={[
-                    'flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
-                    difficulty === value
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-primary-50',
-                  ].join(' ')}
-                  onClick={() => setDifficulty(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Button onClick={handleGenerate} className="w-full">
-            {t.home.generateButton}
-          </Button>
-        </div>
+          </>
+        )}
       </div>
     </main>
   )
