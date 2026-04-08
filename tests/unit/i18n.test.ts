@@ -27,7 +27,9 @@ function getByPath(obj: Record<string, unknown>, path: string): unknown {
 }
 
 const referenceLocale: Locale = 'fr'
-const referenceKeys = getKeyPaths(translations[referenceLocale] as unknown as Record<string, unknown>)
+const referenceKeys = getKeyPaths(
+  translations[referenceLocale] as unknown as Record<string, unknown>,
+)
 
 describe('i18n translations', () => {
   it('la langue de référence (fr) a des clés', () => {

@@ -34,7 +34,8 @@ src/
 │   ├── types.ts
 │   ├── clues.ts       # Calcul d'indices + getClueStatuses (completed/impossible)
 │   ├── solver.ts
-│   ├── generator.ts
+│   ├── generator.ts       # generatePuzzle (async, Web Worker)
+│   ├── generatorWorker.ts # Worker dédié à la génération de puzzles
 │   ├── imageProcessor.ts
 │   └── preloadOCR.ts  # Préchargement Tesseract pour mode offline
 ├── store/
@@ -111,7 +112,9 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
   - **Clic droit** : toujours mark/unmark, avec support du drag (glisser).
   - **Long-press** (mobile, 400ms) : bascule mark en mode fill uniquement.
   - **Drag** : fonctionne pour les 3 modes (fill, mark, erase) + clic droit.
-- Le calcul de `cellSize` s'adapte à la taille de la grille pour tenir sur mobile.
+- Le calcul de `cellSize` s'adapte à la taille de la grille et de l'écran :
+  - **Desktop** (>= 640px) : taille fixe de 32px.
+  - **Mobile** (< 640px) : calculé pour que `(maxRowClueCount + cols) * cellSize` tienne dans la largeur de l'écran, min 12px. Ne pas appliquer de contrainte de largeur sur desktop (régression constatée).
 - Les **séparateurs épais** (toutes les 5 cases) ne s'affichent que si la grille est un multiple de 5 dans les deux dimensions.
 
 ### Indices visuels (ClueStatuses)
@@ -124,7 +127,7 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - **Solution custom sans dépendance** : Zustand store + fichiers de traduction typés.
 - 5 langues : français (défaut), anglais, allemand, italien, espagnol.
 - ~80 clés organisées par namespace (`home`, `game`, `solver`, `import`, `corner`, etc.).
-- `TranslationKeys` dans `i18n/types.ts` est le contrat — TypeScript garantit la complétude de chaque fichier de traduction.
+- `TranslationKeys` dans `i18n/types.ts` est le contrat — TypeScript garantit la structure de chaque fichier de traduction, et les tests unitaires vérifient l'absence de valeurs vides.
 - `useTranslation()` retourne l'objet typé `t` — autocomplétion complète, pas de clés string.
 - Interpolation simple par `.replace('{var}', value)` au site d'appel.
 - La langue est persistée en `localStorage` (clé `picross-locale`).
@@ -137,6 +140,8 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - **Ne pas mocker la logique métier** dans les tests de composants — utiliser les vraies fonctions `lib/`.
 - Les tests e2e Playwright couvrent les parcours utilisateur complets (générer → jouer → résoudre).
 - Les stores Zustand sont testables directement via `useGameStore.getState()` / `useGameStore.setState()` — reset manuel dans `beforeEach`.
+- **Tests i18n** (`tests/unit/i18n.test.ts`) : vérifient que chaque langue a exactement les mêmes clés que la référence (fr) et qu'aucune valeur n'est vide.
+- **Web Workers en tests** : jsdom ne supporte pas les Web Workers. `generatePuzzle` utilise un worker, donc les tests mocker `Worker` avec `vi.stubGlobal('Worker', MockWorker)`. Le mock simule le worker de manière synchrone.
 
 ### Thème et couleurs
 - Le thème est centralisé dans **`src/theme.css`** via la directive `@theme` de Tailwind v4.
@@ -164,11 +169,17 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - Les composants n'utilisent pas `useState` pour l'état de jeu — uniquement pour l'état local UI (ex: drag-over, phase d'import).
 - Les actions du store (`fillCell`, `markCell`, `clearCell`, `reset`…) sont exposées via le hook `useGame`.
 
+### Générateur
+- `generatePuzzle()` est **asynchrone** et tourne dans un **Web Worker** (`generatorWorker.ts`).
+- La boucle génère des grilles aléatoires et appelle `solve()` pour vérifier l'unicité de la solution — `solve()` étant synchrone et coûteux sur les grosses grilles (20×20), le Web Worker est indispensable pour ne pas geler le thread UI.
+- Accepte un `AbortSignal` : l'annulation appelle `worker.terminate()` qui tue le calcul instantanément.
+- HomePage affiche un spinner pendant la génération avec un bouton Annuler.
+- **Règle critique** : ne jamais remettre `solve()` ou la boucle de génération sur le thread principal — même avec `setTimeout` ou `await`, un `solve()` synchrone de plusieurs secondes gèle le navigateur et empêche l'UI de réagir (le clic Annuler n'est jamais traité).
+
 ### Solveur
 - L'algorithme : **propagation de contraintes itérative** en premier, **backtracking** en fallback.
-- Le solveur tourne de façon synchrone dans un `setTimeout(..., 0)` pour ne pas bloquer le thread UI.
-- Ne pas utiliser de Web Worker pour le solveur sauf si des puzzles >20×20 posent des problèmes de performance mesurables.
-- Quand le solveur est utilisé, `cheated` est mis à `true` dans le store → l'animation de victoire affiche "Tricheur !" au lieu de "Bravo !".
+- Le solveur tourne de façon synchrone — utilisé directement dans le thread principal pour la résolution à la demande (bouton "Résoudre") et dans le Web Worker pour la génération.
+- Quand le solveur est utilisé via le bouton, `cheated` est mis à `true` dans le store → l'animation de victoire affiche "Tricheur !" au lieu de "Bravo !".
 
 ### Mode diagnostic
 - Activé / désactivé par **Ctrl+D** depuis n'importe où dans l'application.

@@ -170,6 +170,20 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
           </>
         )}
       </div>
+
+      <footer className="mt-auto pt-8 pb-4">
+        <p className="text-xs text-gray-300 text-center">
+          Made with 🧡 by{' '}
+          <a
+            href="https://github.com/JulienMattiussi/universal-picross"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary-400 hover:text-primary-500 transition-colors"
+          >
+            YavaDeus
+          </a>
+        </p>
+      </footer>
     </main>
   )
 }
