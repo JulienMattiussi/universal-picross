@@ -97,7 +97,10 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
             >
               <span className="text-3xl">📂</span>
               <div>
-                <span className="font-semibold text-txt block">{t.home.openImage}</span>
+                <span className="font-semibold text-txt block">
+                  {t.home.openImage}
+                  <span className="ml-2 text-xs font-normal text-txt-muted">WIP</span>
+                </span>
                 <span className="text-sm text-txt-tertiary">{t.home.openImageDesc}</span>
               </div>
             </button>
@@ -119,7 +122,10 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
             >
               <span className="text-3xl">🖼️</span>
               <div>
-                <span className="font-semibold text-txt block">{t.photoToPuzzle.title}</span>
+                <span className="font-semibold text-txt block">
+                  {t.photoToPuzzle.title}
+                  <span className="ml-2 text-xs font-normal text-txt-muted">WIP</span>
+                </span>
                 <span className="text-sm text-txt-tertiary">{t.photoToPuzzle.titleDesc}</span>
               </div>
             </button>

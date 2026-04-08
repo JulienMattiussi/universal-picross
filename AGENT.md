@@ -91,7 +91,7 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 - **Pas de SSR** : Vite SPA uniquement. Ne pas introduire Next.js ou Remix.
 - **Alias `@/`** pointe vers `src/`. Toujours utiliser cet alias pour les imports internes, jamais de chemins relatifs `../../`.
 - **Tailwind v4** : utiliser `@import 'tailwindcss'` dans le CSS, pas de fichier `tailwind.config.js`. Les classes utilitaires sont la norme — pas de CSS custom sauf dans `index.css` et `theme.css`.
-- **`npm install` requiert `--legacy-peer-deps`** : `vite-plugin-pwa` n'a pas encore déclaré la compatibilité Vite 8 dans ses peer deps. Le flag est déjà dans le Makefile (`make install`).
+- **`npm install` requiert `--legacy-peer-deps`** : `vite-plugin-pwa` n'a pas encore déclaré la compatibilité Vite 8 dans ses peer deps. Le flag est dans le Makefile (`make install`) et dans `.npmrc` (pour Vercel et tout autre CI). Quand `vite-plugin-pwa` publiera une version compatible Vite 8, retirer `.npmrc` et le flag du Makefile.
 - **Tesseract.js est lourd** (~15 MB avec les données de langue) : il doit rester en **import dynamique / lazy-load**, jamais importé statiquement.
 - **TypeScript strict** : `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly` sont activés. Ne pas désactiver ces options.
 - **Pas de dépendances inutiles** : préférer les solutions custom légères quand la complexité est faible (ex : i18n custom plutôt que i18next pour ~80 clés).
@@ -191,6 +191,11 @@ L'application utilise une **navigation par état** (pas de router), gérée dans
 
 ### Import image / OCR
 - **Détection de grille 100% Canvas 2D** : profils de noirceur (projections ligne/colonne), détection de lignes régulières. Aucune dépendance externe (pas d'OpenCV).
+- **Distinction N&B / Couleur** : `isColorImage()` mesure la saturation moyenne (HSL) sur la zone croppée (pas l'image complète). Seuil 0.15, pixels très sombres/clairs ignorés. Le type est affiché en badge "(N&B)" ou "(Color)" dans les phases d'import.
+  - **N&B** → `detectGridStructure` : lignes sombres uniquement (algorithme original, fiable).
+  - **Couleur** → `detectGridStructureExtended` : cascade dark → edge (transitions de luminosité) → light (lignes claires). Utilisé uniquement quand la zone croppée est détectée comme colorée.
+  - **Règle critique** : ne jamais utiliser les stratégies edge/light sur des images N&B — elles génèrent des faux positifs sur les rangées de cases remplies. La séparation N&B/couleur est le garde-fou.
+  - `detectGridBounds` (auto-détection sur image complète) utilise toujours `detectGridStructureDark` (dark uniquement) quel que soit le type — l'image complète contient trop de bruit (texte, UI) pour les stratégies agressives.
 - Tesseract.js est importé dynamiquement (`await import('tesseract.js')`).
 - **Détection automatique des bords** : à l'upload, `detectGridBounds()` analyse l'image complète et pré-positionne les coins dans `CornerSelector` via la prop `initialCorners`. L'utilisateur n'a qu'à ajuster et valider.
 - **Retry avec élargissement** : si `extractGridCells` échoue avec la sélection exacte, il retente automatiquement en élargissant la zone de +5px, +10px, +15px de chaque côté. Cela compense un cadrage serré qui coupe les lignes extérieures. Toujours utiliser des **marges en pixels absolus** (pas en pourcentage) car les traits de grille ont une épaisseur fixe (1-3px).
