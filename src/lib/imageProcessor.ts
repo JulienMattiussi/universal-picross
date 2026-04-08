@@ -105,6 +105,7 @@ function findLineCenters(profile: Float32Array, threshold: number): number[] {
 function findRegularLines(positions: number[], minCount = 4): number[] | null {
   if (positions.length < minCount) return null
 
+  // Cherche le pas le plus fréquent entre toutes les paires
   const spacingFreq = new Map<number, number>()
   for (let i = 0; i < positions.length; i++)
     for (let j = i + 1; j < positions.length; j++) {
@@ -122,19 +123,21 @@ function findRegularLines(positions: number[], minCount = 4): number[] | null {
   if (bestSpacing === 0) return null
 
   const tol = Math.max(bestSpacing * 0.25, 3)
+
+  // Pour chaque ligne candidate comme origine, garde toutes les lignes qui tombent
+  // sur un multiple du pas régulier — robuste aux bordures épaisses qui décalent
+  // les centres des premières/dernières lignes.
   let best: number[] = []
-  for (let i = 0; i < positions.length; i++) {
-    const chain = [positions[i]]
-    for (let step = 1; step <= positions.length; step++) {
-      const target = positions[i] + step * bestSpacing
-      const found = positions.find(
-        (p) => Math.abs(p - target) <= tol && p > chain[chain.length - 1],
-      )
-      if (found !== undefined) chain.push(found)
-      else break
-    }
-    if (chain.length > best.length) best = chain
+  for (const origin of positions) {
+    const matching = positions.filter((p) => {
+      const dist = p - origin
+      if (dist < -tol) return false
+      const steps = Math.round(dist / bestSpacing)
+      return Math.abs(dist - steps * bestSpacing) <= tol
+    })
+    if (matching.length > best.length) best = matching
   }
+
   return best.length >= minCount ? best : null
 }
 
@@ -195,23 +198,158 @@ function upscaleCanvas(src: HTMLCanvasElement, factor: number): HTMLCanvasElemen
 }
 
 /**
- * Normalise les couleurs : tout pixel non-blanc (noir, bleu, orange…) → noir pur.
- * Indispensable pour que Tesseract lise les chiffres colorés.
+ * Calcule le seuil optimal (méthode d'Otsu) sur un tableau de valeurs en [0,1].
+ * Maximise la variance inter-classe pour séparer fond et texte.
  */
-function normalizeToBlackWhite(src: HTMLCanvasElement): HTMLCanvasElement {
+function otsuThreshold(grays: Float32Array): number {
+  const hist = new Float32Array(256)
+  for (let i = 0; i < grays.length; i++) hist[Math.round(grays[i] * 255)]++
+  const total = grays.length
+  for (let i = 0; i < 256; i++) hist[i] /= total
+
+  let sumAll = 0
+  for (let i = 0; i < 256; i++) sumAll += i * hist[i]
+
+  let bestT = 128,
+    bestVar = -1,
+    w0 = 0,
+    sum0 = 0
+  for (let t = 0; t < 256; t++) {
+    w0 += hist[t]
+    sum0 += t * hist[t]
+    const w1 = 1 - w0
+    if (w0 === 0 || w1 === 0) continue
+    const mu0 = sum0 / w0
+    const mu1 = (sumAll - sum0) / w1
+    const v = w0 * w1 * (mu0 - mu1) ** 2
+    if (v > bestVar) {
+      bestVar = v
+      bestT = t
+    }
+  }
+  return bestT / 255
+}
+
+/**
+ * Convertit en noir et blanc avec seuillage adaptatif (Otsu).
+ * Gère automatiquement fond clair sur texte sombre et l'inverse.
+ * Résultat : texte noir sur fond blanc — format attendu par Tesseract.
+ */
+function adaptiveNormalize(src: HTMLCanvasElement): HTMLCanvasElement {
   const out = document.createElement('canvas')
   out.width = src.width
   out.height = src.height
   const ctx = out.getContext('2d')!
   ctx.drawImage(src, 0, 0)
-  const img = ctx.getImageData(0, 0, out.width, out.height)
-  for (let i = 0; i < img.data.length; i += 4) {
-    const isWhite = img.data[i] > 200 && img.data[i + 1] > 200 && img.data[i + 2] > 200
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = isWhite ? 255 : 0
-    img.data[i + 3] = 255
+  const imgData = ctx.getImageData(0, 0, out.width, out.height)
+  const { data } = imgData
+  const n = data.length / 4
+
+  const grays = new Float32Array(n)
+  for (let i = 0; i < n; i++) {
+    grays[i] = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) / 255
   }
-  ctx.putImageData(img, 0, 0)
+
+  const threshold = otsuThreshold(grays)
+
+  // La classe majoritaire est le fond.
+  // On utilise le seuil Otsu (et non 0.5) pour éviter que les fonds gris
+  // (zone d'indices hors grille) soient classés comme fond sombre.
+  let aboveThreshold = 0
+  for (let i = 0; i < n; i++) if (grays[i] > threshold) aboveThreshold++
+  const bgIsLight = aboveThreshold >= n / 2
+
+  for (let i = 0; i < n; i++) {
+    const isText = bgIsLight ? grays[i] < threshold : grays[i] > threshold
+    const v = isText ? 0 : 255
+    data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v
+    data[i * 4 + 3] = 255
+  }
+
+  ctx.putImageData(imgData, 0, 0)
   return out
+}
+
+/** Ajoute un liseré blanc autour de l'image pour améliorer la détection Tesseract aux bords. */
+function addWhitePadding(src: HTMLCanvasElement, pad: number): HTMLCanvasElement {
+  const out = document.createElement('canvas')
+  out.width = src.width + pad * 2
+  out.height = src.height + pad * 2
+  const ctx = out.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, out.width, out.height)
+  ctx.drawImage(src, pad, pad)
+  return out
+}
+
+/**
+ * Supprime les colonnes et rangées quasi-entièrement noires (traits de grille).
+ * Doit être appliqué sur une image déjà normalisée en N&B.
+ */
+function removeGridLines(src: HTMLCanvasElement, threshold = 0.75): HTMLCanvasElement {
+  const ctx = src.getContext('2d')!
+  const imgData = ctx.getImageData(0, 0, src.width, src.height)
+  const { data, width, height } = imgData
+
+  for (let x = 0; x < width; x++) {
+    let black = 0
+    for (let y = 0; y < height; y++) if (data[(y * width + x) * 4] === 0) black++
+    if (black / height > threshold) {
+      for (let y = 0; y < height; y++) {
+        const i = (y * width + x) * 4
+        data[i] = data[i + 1] = data[i + 2] = 255
+      }
+    }
+  }
+
+  for (let y = 0; y < height; y++) {
+    let black = 0
+    for (let x = 0; x < width; x++) if (data[(y * width + x) * 4] === 0) black++
+    if (black / width > threshold) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4
+        data[i] = data[i + 1] = data[i + 2] = 255
+      }
+    }
+  }
+
+  const out = document.createElement('canvas')
+  out.width = width
+  out.height = height
+  out.getContext('2d')!.putImageData(imgData, 0, 0)
+  return out
+}
+
+/**
+ * Rogne au contenu noir utile (bounding-box des pixels noirs restants) + marge blanche.
+ * Permet de présenter à Tesseract uniquement les chiffres, sans espace mort.
+ */
+function cropToContent(src: HTMLCanvasElement, pad = 8): HTMLCanvasElement {
+  const ctx = src.getContext('2d')!
+  const { data, width, height } = ctx.getImageData(0, 0, src.width, src.height)
+
+  let minX = width,
+    maxX = -1,
+    minY = height,
+    maxY = -1
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4] === 0) {
+        if (x < minX) minX = x
+        if (x > maxX) maxX = x
+        if (y < minY) minY = y
+        if (y > maxY) maxY = y
+      }
+    }
+  }
+
+  if (maxX < 0) return src // aucun pixel noir trouvé
+
+  const cx = Math.max(0, minX - pad)
+  const cy = Math.max(0, minY - pad)
+  const cw = Math.min(width, maxX + pad + 1) - cx
+  const ch = Math.min(height, maxY + pad + 1) - cy
+  return cropCanvas(src, cx, cy, cw, ch)
 }
 
 function getWords(data: Tesseract.Page): Tesseract.Word[] {
@@ -226,6 +364,28 @@ function parseNums(text: string): number[] {
     .split(/\s+/)
     .map(Number)
     .filter((n) => !isNaN(n) && n >= 0)
+}
+
+/**
+ * Corrige les chiffres OCR mal collés : si un nombre dépasse maxValue (impossible
+ * dans une grille de cette taille), il est séparé en ses chiffres individuels.
+ * Ex : "11" avec maxValue=5  →  "1 1"
+ *      "12" avec maxValue=5  →  "1 2"
+ *      "11" avec maxValue=15 →  "11" (valide, inchangé)
+ */
+function repairClueString(raw: string, maxValue: number): string {
+  return raw
+    .trim()
+    .split(/\s+/)
+    .filter((s) => s.length > 0)
+    .flatMap((token) => {
+      const n = parseInt(token, 10)
+      if (isNaN(n)) return []
+      if (n <= maxValue) return [token]
+      // Nombre impossible : sépare chaque chiffre
+      return token.split('').filter((d) => /[0-9]/.test(d))
+    })
+    .join(' ')
 }
 
 // ---------------------------------------------------------------------------
@@ -338,9 +498,11 @@ export async function recognizeAllClueCells(
 
   const { createWorker } = await import('tesseract.js')
   const worker = await createWorker('eng', 1, { logger: () => {} })
+  // PSM 6 : bloc de texte uniforme — adapté à 1-2 chiffres par cellule,
+  // qu'ils soient sur une ligne (indices lignes) ou empilés (indices colonnes).
   await worker.setParameters({
     tessedit_char_whitelist: '0123456789 ',
-    tessedit_pageseg_mode: '11' as unknown as Parameters<
+    tessedit_pageseg_mode: '6' as unknown as Parameters<
       typeof worker.setParameters
     >[0]['tessedit_pageseg_mode'],
   })
@@ -351,23 +513,32 @@ export async function recognizeAllClueCells(
     canvas.width = img.naturalWidth
     canvas.height = img.naturalHeight
     canvas.getContext('2d')!.drawImage(img, 0, 0)
-    const prepared = upscaleCanvas(normalizeToBlackWhite(canvas), 4)
+
+    // Pipeline : normalisation → suppression traits de grille → rognage contenu
+    const cleaned = cropToContent(removeGridLines(adaptiveNormalize(canvas)))
+
+    // Agrandir jusqu'à au moins 128px sur le plus petit côté
+    const factor = Math.max(2, Math.ceil(128 / Math.min(cleaned.width, cleaned.height)))
+    const prepared = addWhitePadding(upscaleCanvas(cleaned, factor), 16)
+
     const result = await worker.recognize(prepared)
     return result.data.text
       .trim()
-      .replace(/[^0-9 ]/g, '')
+      .replace(/[^0-9\n ]/g, '')
+      .replace(/\n+/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim()
   }
 
   const colResults: string[] = []
   for (let j = 0; j < nCols; j++) {
-    colResults.push(await processCell(colClueCells[j]))
+    colResults.push(repairClueString(await processCell(colClueCells[j]), nRows))
     onProgress?.(j + 1, total)
   }
 
   const rowResults: string[] = []
   for (let i = 0; i < nRows; i++) {
-    rowResults.push(await processCell(rowClueCells[i]))
+    rowResults.push(repairClueString(await processCell(rowClueCells[i]), nCols))
     onProgress?.(nCols + i + 1, total)
   }
 
@@ -430,7 +601,10 @@ export async function processImageWithCorners(
     const SCALE = 4
 
     const prepare = (cx: number, cy: number, cw: number, ch: number) =>
-      upscaleCanvas(normalizeToBlackWhite(cropCanvas(fullCanvas, cx, cy, cw, ch)), SCALE)
+      upscaleCanvas(
+        addWhitePadding(adaptiveNormalize(cropCanvas(fullCanvas, cx, cy, cw, ch)), 8),
+        SCALE,
+      )
 
     // Bande lignes : à gauche de x1
     const rowStrip = prepare(x1 - clueW, y1, clueW, selH)
@@ -443,7 +617,7 @@ export async function processImageWithCorners(
     const worker = await createWorker('eng', 1, { logger: () => {} })
     await worker.setParameters({
       tessedit_char_whitelist: '0123456789 ',
-      tessedit_pageseg_mode: '11' as unknown as Parameters<
+      tessedit_pageseg_mode: '6' as unknown as Parameters<
         typeof worker.setParameters
       >[0]['tessedit_pageseg_mode'],
     })
