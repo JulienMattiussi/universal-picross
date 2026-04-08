@@ -98,6 +98,11 @@ export const de: TranslationKeys = {
   options: {
     title: 'Optionen',
     language: 'Sprache',
+    offlineMode: 'Offline-Modus',
+    offlineDesc:
+      'Lädt OCR-Daten (~15 MB) vor, um Bilder ohne Internetverbindung importieren zu können.',
+    offlineDownloading: 'Download läuft…',
+    offlineReady: 'OCR-Daten im Cache',
   },
   languages: {
     fr: 'Français',

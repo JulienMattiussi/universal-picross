@@ -94,6 +94,10 @@ export const en: TranslationKeys = {
   options: {
     title: 'Options',
     language: 'Language',
+    offlineMode: 'Offline mode',
+    offlineDesc: 'Preloads OCR data (~15 MB) to import images without an internet connection.',
+    offlineDownloading: 'Downloading…',
+    offlineReady: 'OCR data cached',
   },
   languages: {
     fr: 'Français',

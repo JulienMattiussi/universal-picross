@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react'
 import { useI18nStore } from '@/i18n/i18nStore'
 import { useTranslation } from '@/i18n/useTranslation'
 import { LOCALES } from '@/i18n/types'
 import type { Locale } from '@/i18n/types'
+import { useSettingsStore } from '@/store/settingsStore'
+import { isOCRCached, preloadOCR } from '@/lib/preloadOCR'
 
 interface OptionsPageProps {
   onBack: () => void
@@ -10,6 +13,28 @@ interface OptionsPageProps {
 export default function OptionsPage({ onBack }: OptionsPageProps) {
   const t = useTranslation()
   const { locale, setLocale } = useI18nStore()
+  const { offlineMode, setOfflineMode } = useSettingsStore()
+  const [downloading, setDownloading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [cached, setCached] = useState(false)
+
+  useEffect(() => {
+    isOCRCached().then(setCached)
+  }, [])
+
+  const handleToggleOffline = async (enabled: boolean) => {
+    setOfflineMode(enabled)
+    if (enabled && !cached) {
+      setDownloading(true)
+      setProgress(0)
+      try {
+        await preloadOCR((p) => setProgress(p))
+        setCached(true)
+      } finally {
+        setDownloading(false)
+      }
+    }
+  }
 
   return (
     <main className="flex flex-col items-center gap-8 py-8 px-4 min-h-svh">
@@ -27,6 +52,7 @@ export default function OptionsPage({ onBack }: OptionsPageProps) {
       </header>
 
       <div className="w-full max-w-sm flex flex-col gap-4">
+        {/* Langue */}
         <div className="flex flex-col gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
           <label className="text-sm font-medium text-gray-700">{t.options.language}</label>
           <select
@@ -40,6 +66,48 @@ export default function OptionsPage({ onBack }: OptionsPageProps) {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Mode offline */}
+        <div className="flex flex-col gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-700">{t.options.offlineMode}</label>
+            <button
+              onClick={() => handleToggleOffline(!offlineMode)}
+              disabled={downloading}
+              className={[
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer',
+                offlineMode ? 'bg-primary-500' : 'bg-gray-300',
+                downloading ? 'opacity-50' : '',
+              ].join(' ')}
+            >
+              <span
+                className={[
+                  'inline-block h-4 w-4 rounded-full bg-white transition-transform',
+                  offlineMode ? 'translate-x-6' : 'translate-x-1',
+                ].join(' ')}
+              />
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">{t.options.offlineDesc}</p>
+
+          {/* Barre de progression */}
+          {downloading && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500">{t.options.offlineDownloading}</span>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div
+                  className="bg-primary-500 h-2 rounded-full transition-all"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Indicateur cache OK */}
+          {cached && !downloading && offlineMode && (
+            <span className="text-xs text-green-600">✓ {t.options.offlineReady}</span>
+          )}
         </div>
       </div>
     </main>

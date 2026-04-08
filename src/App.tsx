@@ -4,6 +4,8 @@ import GamePage from '@/pages/GamePage'
 import OptionsPage from '@/pages/OptionsPage'
 import { useDebugStore } from '@/store/debugStore'
 import { useGameStore } from '@/store/gameStore'
+import { useSettingsStore } from '@/store/settingsStore'
+import { isOCRCached, preloadOCR } from '@/lib/preloadOCR'
 
 type Page = 'home' | 'game' | 'options'
 
@@ -22,6 +24,15 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [toggle])
+
+  // Préchargement OCR silencieux si le mode offline est activé
+  useEffect(() => {
+    const { offlineMode } = useSettingsStore.getState()
+    if (!offlineMode) return
+    isOCRCached().then((cached) => {
+      if (!cached) preloadOCR()
+    })
+  }, [])
 
   const handleImport = (mode: ImportMode) => {
     // Reset le jeu précédent pour que l'import reparte de zéro

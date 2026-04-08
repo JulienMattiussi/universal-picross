@@ -107,6 +107,10 @@ export interface TranslationKeys {
   options: {
     title: string
     language: string
+    offlineMode: string
+    offlineDesc: string
+    offlineDownloading: string
+    offlineReady: string
   }
 
   languages: {
