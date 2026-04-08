@@ -161,6 +161,22 @@ function detectGridStructure(imageData: ImageData): GridStructure | null {
   return null
 }
 
+/**
+ * Tente de détecter automatiquement les bords de la grille de jeu sur l'image complète.
+ * Retourne les deux coins opposés (haut-gauche, bas-droit) en coordonnées image,
+ * ou null si aucune grille régulière n'est trouvée.
+ */
+export function detectGridBounds(imageData: ImageData): [Point, Point] | null {
+  const grid = detectGridStructure(imageData)
+  if (!grid) return null
+  const { rowLines, colLines } = grid
+  if (rowLines.length < 4 || colLines.length < 4) return null
+  return [
+    { x: colLines[0], y: rowLines[0] },
+    { x: colLines[colLines.length - 1], y: rowLines[rowLines.length - 1] },
+  ]
+}
+
 // ---------------------------------------------------------------------------
 // Helpers canvas
 // ---------------------------------------------------------------------------
@@ -420,19 +436,38 @@ export function extractGridCells(
   p1: Point,
   p2: Point,
 ): GridCellsResult | null {
-  const x1 = Math.round(Math.min(p1.x, p2.x))
-  const y1 = Math.round(Math.min(p1.y, p2.y))
-  const x2 = Math.round(Math.max(p1.x, p2.x))
-  const y2 = Math.round(Math.max(p1.y, p2.y))
-  const selW = x2 - x1
-  const selH = y2 - y1
+  const origX1 = Math.round(Math.min(p1.x, p2.x))
+  const origY1 = Math.round(Math.min(p1.y, p2.y))
+  const origX2 = Math.round(Math.max(p1.x, p2.x))
+  const origY2 = Math.round(Math.max(p1.y, p2.y))
 
   const canvas = imageDataToCanvas(imageData)
-  const croppedData = cropCanvas(canvas, x1, y1, selW, selH)
-    .getContext('2d')!
-    .getImageData(0, 0, selW, selH)
 
-  const grid = detectGridStructure(croppedData)
+  // Tente la détection avec la sélection exacte, puis en élargissant par paliers
+  // de 5 px pour capturer les lignes extérieures coupées par un cadrage serré.
+  const EXPAND_PX = [0, 5, 10, 15]
+  let grid: GridStructure | null = null
+  let x1 = origX1
+  let y1 = origY1
+  let selW = origX2 - origX1
+  let selH = origY2 - origY1
+
+  for (const pad of EXPAND_PX) {
+    x1 = Math.max(0, origX1 - pad)
+    y1 = Math.max(0, origY1 - pad)
+    const ex2 = Math.min(imageData.width, origX2 + pad)
+    const ey2 = Math.min(imageData.height, origY2 + pad)
+    selW = ex2 - x1
+    selH = ey2 - y1
+
+    const croppedData = cropCanvas(canvas, x1, y1, selW, selH)
+      .getContext('2d')!
+      .getImageData(0, 0, selW, selH)
+
+    grid = detectGridStructure(croppedData)
+    if (grid) break
+  }
+
   if (!grid) return null
 
   // N+1 lignes bornent N cases

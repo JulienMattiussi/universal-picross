@@ -7,6 +7,7 @@ import GridCorrector from './GridCorrector'
 import ClueValidator from './ClueValidator'
 import Spinner from '@/components/ui/Spinner'
 import {
+  detectGridBounds,
   extractGridCells,
   recognizeAllClueCells,
   type GridCellsResult,
@@ -43,11 +44,17 @@ export default function ImportPanel() {
     cols: string[]
   } | null>(null)
   const [isSolvable, setIsSolvable] = useState<boolean | null>(null)
+  const [detectedCorners, setDetectedCorners] = useState<[Point, Point] | null>(null)
 
   const handleImage = (data: ImageData) => {
     setImageData(data)
     setPhase('selecting')
     setError(null)
+    // Détection automatique des bords de la grille (non bloquant)
+    setTimeout(() => {
+      const bounds = detectGridBounds(data)
+      if (bounds) setDetectedCorners(bounds)
+    }, 0)
   }
 
   const handleCornersConfirmed = (p1: Point, p2: Point) => {
@@ -135,6 +142,7 @@ export default function ImportPanel() {
     setError(null)
     setRecognizedValues(null)
     setIsSolvable(null)
+    setDetectedCorners(null)
   }
 
   const goBack: Partial<Record<Phase, () => void>> = {
@@ -215,6 +223,7 @@ export default function ImportPanel() {
           imageData={imageData}
           onConfirm={handleCornersConfirmed}
           onCancel={resetAll}
+          initialCorners={detectedCorners ?? undefined}
         />
       )}
 

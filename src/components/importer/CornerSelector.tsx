@@ -6,14 +6,20 @@ interface CornerSelectorProps {
   imageData: ImageData
   onConfirm: (p1: Point, p2: Point) => void
   onCancel: () => void
+  /** Coins pré-détectés (coordonnées image originale) pour initialiser la sélection. */
+  initialCorners?: [Point, Point]
 }
 
 const MARKER_COLOR = '#f97316'
 const HIT_RADIUS = 12 // px — rayon de détection pour le drag
 
-export default function CornerSelector({ imageData, onConfirm, onCancel }: CornerSelectorProps) {
+export default function CornerSelector({
+  imageData,
+  onConfirm,
+  onCancel,
+  initialCorners,
+}: CornerSelectorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [corners, setCorners] = useState<Point[]>([])
   // Index du coin en cours de déplacement (-1 = aucun). Ref pour ne pas retriggerer les effets.
   const draggingIdx = useRef<number>(-1)
   const [cursor, setCursor] = useState<'crosshair' | 'grab' | 'grabbing'>('crosshair')
@@ -23,6 +29,12 @@ export default function CornerSelector({ imageData, onConfirm, onCancel }: Corne
   const scale = Math.min(MAX_W / imageData.width, MAX_H / imageData.height, 1)
   const displayW = Math.round(imageData.width * scale)
   const displayH = Math.round(imageData.height * scale)
+
+  // Initialise les coins à partir de la détection auto (coordonnées image → canvas)
+  const [corners, setCorners] = useState<Point[]>(() => {
+    if (!initialCorners) return []
+    return initialCorners.map((p) => ({ x: p.x * scale, y: p.y * scale }))
+  })
 
   /** Convertit un MouseEvent en coordonnées canvas (corrige le ratio CSS/interne) */
   const canvasPos = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
@@ -143,7 +155,9 @@ export default function CornerSelector({ imageData, onConfirm, onCancel }: Corne
   const instructions = [
     'Cliquez sur le premier coin de la grille (ex : coin haut-gauche).',
     'Cliquez sur le coin opposé (ex : coin bas-droit).',
-    'Glissez les points pour ajuster, puis validez.',
+    initialCorners
+      ? 'Grille détectée automatiquement. Ajustez si nécessaire, puis validez.'
+      : 'Glissez les points pour ajuster, puis validez.',
   ]
 
   return (

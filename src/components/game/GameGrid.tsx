@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import Cell from './Cell'
 import type { PlayGrid } from '@/lib/types'
 
@@ -16,11 +17,114 @@ export default function GameGrid({
   onMark,
   errorCells = new Set(),
 }: GameGridProps) {
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  // État du drag stocké en ref (pas de re-render nécessaire)
+  const dragRef = useRef<{
+    action: 'fill' | 'unfill'
+    visited: Set<string>
+    origin: [number, number]
+    active: boolean
+  } | null>(null)
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const getCellAt = (clientX: number, clientY: number): [number, number] | null => {
+    if (!gridRef.current) return null
+    const rect = gridRef.current.getBoundingClientRect()
+    const c = Math.floor((clientX - rect.left) / cellSize)
+    const r = Math.floor((clientY - rect.top) / cellSize)
+    if (r < 0 || r >= grid.length || c < 0 || c >= (grid[0]?.length ?? 0)) return null
+    return [r, c]
+  }
+
+  const applyToCell = (r: number, c: number) => {
+    if (!dragRef.current) return
+    const key = `${r},${c}`
+    if (dragRef.current.visited.has(key)) return
+    if (grid[r][c] === 'marked') return
+
+    const { action } = dragRef.current
+    if (action === 'fill' && grid[r][c] !== 'filled') {
+      dragRef.current.visited.add(key)
+      onFill(r, c)
+    } else if (action === 'unfill' && grid[r][c] === 'filled') {
+      dragRef.current.visited.add(key)
+      onFill(r, c)
+    }
+  }
+
+  const cancelLongPress = () => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current)
+      longPressRef.current = null
+    }
+  }
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    const cell = getCellAt(e.clientX, e.clientY)
+    if (!cell) return
+    const [r, c] = cell
+
+    e.preventDefault()
+    gridRef.current?.setPointerCapture(e.pointerId)
+
+    const action = grid[r][c] === 'filled' ? 'unfill' : 'fill'
+    dragRef.current = { action, visited: new Set(), origin: [r, c], active: false }
+
+    longPressRef.current = setTimeout(() => {
+      longPressRef.current = null
+      dragRef.current = null
+      onMark(r, c)
+    }, 400)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return
+    const cell = getCellAt(e.clientX, e.clientY)
+    if (!cell) return
+    const [r, c] = cell
+    const [r0, c0] = dragRef.current.origin
+
+    // Première cellule différente : on active le mode drag
+    if (!dragRef.current.active && (r !== r0 || c !== c0)) {
+      cancelLongPress()
+      dragRef.current.active = true
+      applyToCell(r0, c0)
+    }
+
+    if (dragRef.current.active) {
+      applyToCell(r, c)
+    }
+  }
+
+  const handlePointerUp = () => {
+    cancelLongPress()
+    if (dragRef.current && !dragRef.current.active) {
+      // Simple clic : toggle normal
+      const [r, c] = dragRef.current.origin
+      if (grid[r][c] !== 'marked') onFill(r, c)
+    }
+    dragRef.current = null
+  }
+
+  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const cell = getCellAt(e.clientX, e.clientY)
+    if (cell) onMark(cell[0], cell[1])
+  }
+
   return (
     <div
-      className="border-2 border-gray-700 inline-block"
+      ref={gridRef}
+      className="border-2 border-gray-700 inline-block touch-none select-none cursor-crosshair"
       role="grid"
       aria-label="Grille de picross"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onContextMenu={handleContextMenu}
     >
       {grid.map((row, r) => (
         <div key={r} className="flex" role="row">
@@ -31,8 +135,6 @@ export default function GameGrid({
               row={r}
               col={c}
               size={cellSize}
-              onFill={onFill}
-              onMark={onMark}
               isError={errorCells.has(`${r},${c}`)}
             />
           ))}

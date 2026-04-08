@@ -23,7 +23,6 @@ L'application fonctionne sur mobile et desktop, et peut être installée comme u
 | ESLint (typescript-eslint) | Linting |
 | vite-plugin-pwa | Service Worker + manifest |
 | Tesseract.js | OCR (lazy-load) |
-| OpenCV.js | Détection de grille (lazy-load WebAssembly) |
 
 ---
 
@@ -38,7 +37,8 @@ src/
 │   ├── generator.ts
 │   └── imageProcessor.ts
 ├── store/
-│   └── gameStore.ts     # Zustand
+│   ├── gameStore.ts     # Zustand — état de jeu
+│   └── debugStore.ts    # Zustand — mode diagnostic (Ctrl+D)
 ├── hooks/
 │   ├── useGame.ts
 │   ├── useTimer.ts
@@ -48,7 +48,8 @@ src/
 │   ├── game/            # Cell, ClueCell, ClueList, GameGrid, GameBoard
 │   ├── generator/       # GeneratorPanel
 │   ├── solver/          # SolverPanel
-│   └── importer/        # ImageUploader, CameraCapture, GridCorrector, ImportPanel
+│   └── importer/        # ImageUploader, CameraCapture, CornerSelector, GridMosaic,
+│                        # GridCorrector, ClueValidator, ImportPanel
 └── pages/
     ├── HomePage.tsx
     └── GamePage.tsx
@@ -62,12 +63,12 @@ tests/
 
 ## Contraintes techniques
 
-- **100% front-end** : aucun appel à un serveur externe, pas de backend, pas d'API distante (sauf chargement lazy d'OpenCV.js depuis CDN).
+- **100% front-end** : aucun appel à un serveur externe, pas de backend, pas d'API distante.
 - **Pas de SSR** : Vite SPA uniquement. Ne pas introduire Next.js ou Remix.
 - **Alias `@/`** pointe vers `src/`. Toujours utiliser cet alias pour les imports internes, jamais de chemins relatifs `../../`.
 - **Tailwind v4** : utiliser `@import 'tailwindcss'` dans le CSS, pas de fichier `tailwind.config.js`. Les classes utilitaires sont la norme — pas de CSS custom sauf dans `index.css` et `theme.css`.
 - **`npm install` requiert `--legacy-peer-deps`** : `vite-plugin-pwa` n'a pas encore déclaré la compatibilité Vite 8 dans ses peer deps. Le flag est déjà dans le Makefile (`make install`).
-- **Tesseract.js et OpenCV.js sont lourds** (~8MB chacun) : ils doivent rester en **import dynamique / lazy-load**, jamais importés statiquement.
+- **Tesseract.js est lourd** (~8 MB) : il doit rester en **import dynamique / lazy-load**, jamais importé statiquement.
 - **TypeScript strict** : `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly` sont activés. Ne pas désactiver ces options.
 
 ---
@@ -92,7 +93,8 @@ tests/
 - **Tout composant non trivial** doit avoir des tests dans `tests/component/`.
 - **Ne pas mocker la logique métier** dans les tests de composants — utiliser les vraies fonctions `lib/`.
 - Les tests e2e Playwright couvrent les parcours utilisateur complets (générer → jouer → résoudre).
-- Lancer `npm run test` avant chaque commit pour s'assurer que les 44 tests passent.
+- Lancer `npm run test` avant chaque commit pour s'assurer que les 49 tests passent.
+- Les stores Zustand sont testables directement via `useGameStore.getState()` / `useGameStore.setState()` — reset manuel dans `beforeEach`.
 
 ### Thème et couleurs
 - Le thème est centralisé dans **`src/theme.css`** via la directive `@theme` de Tailwind v4.
@@ -123,10 +125,31 @@ tests/
 - Le solveur tourne de façon synchrone dans un `setTimeout(..., 0)` pour ne pas bloquer le thread UI.
 - Ne pas utiliser de Web Worker pour le solveur sauf si des puzzles >20×20 posent des problèmes de performance mesurables.
 
+### Mode diagnostic
+- Activé / désactivé par **Ctrl+D** depuis n'importe où dans l'application.
+- État global dans `src/store/debugStore.ts` (Zustand).
+- Quand actif : chip `debug` affiché en position `fixed` top-right dans `App.tsx`.
+- Listener Ctrl+D enregistré une seule fois dans `App.tsx` via `useEffect`.
+
 ### Import image / OCR
-- OpenCV.js est chargé depuis CDN à la demande — ne pas le bundler.
+- **Détection de grille 100% Canvas 2D** : profils de noirceur (projections ligne/colonne), détection de lignes régulières. Aucune dépendance externe (pas d'OpenCV).
 - Tesseract.js est importé dynamiquement (`await import('tesseract.js')`).
-- Après OCR, toujours présenter `GridCorrector` à l'utilisateur pour valider/corriger les indices avant de lancer la partie.
+- **Détection automatique des bords** : à l'upload, `detectGridBounds()` analyse l'image complète et pré-positionne les coins dans `CornerSelector` via la prop `initialCorners`. L'utilisateur n'a qu'à ajuster et valider.
+- **Retry avec élargissement** : si `extractGridCells` échoue avec la sélection exacte, il retente automatiquement en élargissant la zone de +5px, +10px, +15px de chaque côté. Cela compense un cadrage serré qui coupe les lignes extérieures. Toujours utiliser des **marges en pixels absolus** (pas en pourcentage) car les traits de grille ont une épaisseur fixe (1-3px).
+- **Flux normal** (mode diagnostic désactivé) :
+  1. Upload → détection auto des bords → sélection des coins (pré-positionnés si détectés) → extraction → OCR avec barre de progression
+  2. Si le solveur trouve une solution → chargement direct du jeu
+  3. Si la grille est invalide → `GridCorrector` (toutes les cases simultanément, images + inputs)
+- **Flux diagnostic** (mode diagnostic activé) :
+  1. Sélection → mosaïque (`GridMosaic`) → OCR → `ClueValidator` (case par case)
+  2. `ClueValidator` affiche un avertissement si la grille n'est pas soluble
+- **Règle critique** : après injection des indices dans un puzzle importé, toujours appeler `solve(puzzle)` pour obtenir la vraie solution et l'affecter à `puzzle.solution`. Sans ça, `checkWin` compare contre une grille vide et la victoire n'est jamais détectée.
+- Le pipeline OCR est agnostique à la couleur : conversion en niveaux de gris (luminance) + seuillage Otsu adaptatif + inversion automatique fond clair/sombre. Fonctionne pour les picross colorés tant que le contraste est suffisant.
+
+### Détection de victoire
+- `checkWin` dans `gameStore.ts` compare case par case contre `puzzle.solution`.
+- Une case qui _doit_ être vide peut rester `'unknown'` ou `'marked'` — seul `'filled'` est interdit.
+- La victoire est vérifiée à chaque `fillCell` et `applyGrid`.
 
 ---
 
