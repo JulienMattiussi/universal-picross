@@ -254,31 +254,22 @@ export function debugBandAnalysis(imageData: ImageData, log: (...args: unknown[]
   const { width, height } = imageData
   const sampleCount = 3
 
-  log('=== BAND ANALYSIS ===')
-  log(`image size: ${width} × ${height}`)
+  log(`Image ${width} × ${height}`)
 
-  // Scans horizontaux
   for (let s = 0; s < sampleCount; s++) {
     const y = Math.floor((height * (s + 1)) / (sampleCount + 1))
     const bands = scanBands(imageData, y, true)
     const widths = bands.map((b) => b.width)
-    const sorted = [...widths].sort((a, b) => b - a)
     const large = widths.filter((w) => w > 5)
-    log(
-      `H y=${y}: ${widths.join(' ')} → ${large.length} large bands (top: ${sorted.slice(0, 5).join(', ')})`,
-    )
+    log(`  H y=${y} : ${widths.join(' ')} → ${large.length} cases`)
   }
 
-  // Scans verticaux
   for (let s = 0; s < sampleCount; s++) {
     const x = Math.floor((width * (s + 1)) / (sampleCount + 1))
     const bands = scanBands(imageData, x, false)
     const widths = bands.map((b) => b.width)
-    const sorted = [...widths].sort((a, b) => b - a)
     const large = widths.filter((w) => w > 5)
-    log(
-      `V x=${x}: ${widths.join(' ')} → ${large.length} large bands (top: ${sorted.slice(0, 5).join(', ')})`,
-    )
+    log(`  V x=${x} : ${widths.join(' ')} → ${large.length} cases`)
   }
 
   log('=== END BAND ANALYSIS ===')

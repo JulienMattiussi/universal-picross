@@ -5,63 +5,56 @@
 import type { Point } from '@/lib/image/types'
 import { getLuminosity } from '@/lib/image/profiles'
 import { detectGridStructureDark } from '@/lib/image/gridDetection'
+import { createDebugLogger, logStep, logData, logSeparator } from '@/lib/image/debugLog'
 
-/**
- * Tente de détecter automatiquement les bords de la grille de jeu sur l'image complète.
- * Retourne les deux coins opposés (haut-gauche, bas-droit) en coordonnées image,
- * ou null si aucune grille régulière n'est trouvée.
- */
 export function detectGridBounds(imageData: ImageData, debug = false): [Point, Point] | null {
-  const log = debug ? (...args: unknown[]) => console.log('[bounds]', ...args) : () => {}
+  const log = createDebugLogger('BOUNDS', debug)
+  logSeparator(log, 'Auto-détection des bornes')
 
   // Stratégie 1 : lignes sombres (grilles N&B)
   const grid = detectGridStructureDark(imageData)
-  log('dark', grid ? `${grid.rowLines.length}r × ${grid.colLines.length}c` : 'null')
+  logStep(
+    log,
+    'Lignes sombres (N&B)',
+    grid ? `${grid.rowLines.length}r × ${grid.colLines.length}c` : 'aucune',
+    grid != null,
+  )
   if (grid && grid.rowLines.length >= 4 && grid.colLines.length >= 4) {
     const result: [Point, Point] = [
       { x: grid.colLines[0], y: grid.rowLines[0] },
       { x: grid.colLines[grid.colLines.length - 1], y: grid.rowLines[grid.rowLines.length - 1] },
     ]
-    log('result (dark)', result)
+    logData(log, 'Bornes trouvées', result)
     return result
   }
 
   // Stratégie 2 : scan de contrastes depuis les bords (grilles couleur)
-  const edgeResult = detectGridBoundsByEdgeScan(imageData, log)
-  log('result (edgeScan)', edgeResult)
+  const edgeResult = detectGridBoundsByEdgeScan(imageData, debug)
+  logStep(log, 'Résultat final', edgeResult ? 'bornes trouvées' : 'échec', edgeResult != null)
+  if (edgeResult) logData(log, 'Bornes', edgeResult)
   return edgeResult
 }
 
-/**
- * Détecte les bords de la grille en scannant depuis les 4 bords de l'image vers l'intérieur.
- * Sur plusieurs lignes parallèles, cherche la première position où un contraste
- * apparaît de manière cohérente (même position ± tolérance sur toutes les lignes).
- */
-function detectGridBoundsByEdgeScan(
-  imageData: ImageData,
-  log: (...args: unknown[]) => void = () => {},
-): [Point, Point] | null {
+function detectGridBoundsByEdgeScan(imageData: ImageData, debug: boolean): [Point, Point] | null {
+  const log = createDebugLogger('BOUNDS', debug)
   const { width, height, data } = imageData
   const SAMPLE_COUNT = 10
   const THRESHOLD = 0.08
   const TOLERANCE = 10
 
-  log('edgeScan start', { width, height, threshold: THRESHOLD })
+  logSeparator(log, `Scan des bords (${width}×${height})`)
 
   function findEdge(label: string, horizontal: boolean, fromStart: boolean): number | null {
     const scanLen = horizontal ? width : height
     const crossLen = horizontal ? height : width
     const positions: number[] = []
-    const refLums: number[] = []
 
     for (let s = 0; s < SAMPLE_COUNT; s++) {
       const crossPos = Math.floor((crossLen * (s + 1)) / (SAMPLE_COUNT + 1))
-
       const refIdx = fromStart ? 0 : scanLen - 1
       const rx = horizontal ? refIdx : crossPos
       const ry = horizontal ? crossPos : refIdx
       const refLum = getLuminosity(data, width, rx, ry)
-      refLums.push(refLum)
 
       let found = false
       for (let i = 0; i < scanLen; i++) {
@@ -79,23 +72,14 @@ function detectGridBoundsByEdgeScan(
       if (!found) positions.push(-1)
     }
 
-    log(
-      `  ${label}: refLums=[${refLums.map((l) => l.toFixed(2)).join(', ')}] positions=[${positions.join(', ')}]`,
-    )
-
     const valid = positions.filter((p) => p >= 0)
     if (valid.length < 2) {
-      log(`  ${label}: FAILED — only ${valid.length} valid positions`)
+      logStep(log, `  ${label}`, `échec (${valid.length} positions valides)`, false)
       return null
     }
 
-    // Pour les bords "fromStart" (left, top), la grille est plus loin que le texte
-    // → chercher le groupe de positions les plus éloignées du bord.
-    // Pour les bords "fromEnd" (right, bottom), la grille est plus loin aussi
-    // → chercher le groupe le plus éloigné.
     valid.sort((a, b) => a - b)
 
-    // Grouper les positions proches (± tolérance)
     const groups: number[][] = []
     for (const p of valid) {
       const lastGroup = groups[groups.length - 1]
@@ -106,28 +90,24 @@ function detectGridBoundsByEdgeScan(
       }
     }
 
-    // Pour fromStart (left, top) : la grille est plus loin du bord que le texte
-    // → prendre le dernier groupe (le plus éloigné) qui a au moins 2 membres.
-    // Pour fromEnd (right, bottom) : prendre le premier groupe (le plus éloigné du bord opposé).
     const ordered = fromStart ? [...groups].reverse() : groups
     const bestGroup = ordered.find((g) => g.length >= 2)
 
     if (!bestGroup) {
-      log(`  ${label}: FAILED — no group with >= 2 positions`)
+      logStep(log, `  ${label}`, `échec (pas de groupe ≥ 2)`, false)
+      logData(log, `  ${label} positions`, positions)
       return null
     }
 
     const result = Math.round(bestGroup.reduce((a, b) => a + b, 0) / bestGroup.length)
-    log(`  ${label}: OK pos=${result} (group of ${bestGroup.length})`)
+    logStep(log, `  ${label}`, `${result}px (${bestGroup.length} concordants)`, true)
     return result
   }
 
-  const left = findEdge('left', true, true)
-  const right = findEdge('right', true, false)
-  const top = findEdge('top', false, true)
-  const bottom = findEdge('bottom', false, false)
-
-  log('edgeScan results', { left, right, top, bottom })
+  const left = findEdge('Gauche', true, true)
+  const right = findEdge('Droite', true, false)
+  const top = findEdge('Haut', false, true)
+  const bottom = findEdge('Bas', false, false)
 
   if (left == null || right == null || top == null || bottom == null) return null
   if (right - left < 50 || bottom - top < 50) return null
@@ -138,25 +118,19 @@ function detectGridBoundsByEdgeScan(
   ]
 }
 
-/**
- * Depuis deux points cliqués à l'intérieur de cases (coins opposés),
- * étend chaque bord vers l'extérieur en cherchant le dernier trait de grille.
- *
- * Stratégie : on part du bord de la sélection et on avance vers l'extérieur.
- * On compare la luminosité de chaque pixel à la luminosité de référence
- * (moyenne de la case cliquée). Un "trait" = zone courte (< 15px) qui diffère.
- * On retient la position après le dernier trait trouvé = bord extérieur de la grille.
- * Si on tombe sur une zone épaisse qui diffère (> 15px), c'est du texte/indices → stop.
- */
 export function expandCornersToGridEdges(
   imageData: ImageData,
   p1: Point,
   p2: Point,
   debug = false,
 ): [Point, Point] {
+  const log = createDebugLogger('EXPAND', debug)
   const { width, height, data } = imageData
   const MAX_SEARCH = 300
   const THRESHOLD = 0.08
+
+  logSeparator(log, 'Expansion des coins')
+  logData(log, 'Points cliqués', { p1, p2 })
 
   function refLuminosity(cx: number, cy: number): number {
     let sum = 0
@@ -172,11 +146,6 @@ export function expandCornersToGridEdges(
     return sum / count
   }
 
-  /**
-   * Cherche le premier trait en partant de startPos dans la direction step.
-   * Retourne la position juste après le premier trait fin trouvé.
-   * Utilisé vers le haut et la gauche (direction des indices).
-   */
   function findFirstEdge(
     startPos: number,
     fixedPos: number,
@@ -186,35 +155,26 @@ export function expandCornersToGridEdges(
   ): number {
     let inEdge = false
     let edgeStart = 0
-
     for (let i = 1; i <= MAX_SEARCH; i++) {
       const pos = startPos + step * i
       if (step > 0 && pos >= (horizontal ? width - 1 : height - 1)) break
       if (step < 0 && pos <= 0) break
-
       const x = horizontal ? pos : fixedPos
       const y = horizontal ? fixedPos : pos
       const lum = getLuminosity(data, width, x, y)
       const diff = Math.abs(lum - refLum)
-
       if (!inEdge && diff > THRESHOLD) {
         inEdge = true
         edgeStart = pos
       } else if (inEdge && diff <= THRESHOLD) {
         const edgeWidth = Math.abs(pos - edgeStart)
-        if (edgeWidth <= 5) return pos // trait de grille (1-5px)
-        break // zone épaisse (chiffre, texte)
+        if (edgeWidth <= 5) return pos
+        break
       }
     }
-
-    return startPos // aucun trait trouvé, garder la position d'origine
+    return startPos
   }
 
-  /**
-   * Cherche le dernier trait en partant de startPos dans la direction step.
-   * Traverse tous les traits fins et retourne la position après le dernier.
-   * Utilisé vers le bas et la droite (bord extérieur de la grille).
-   */
   function findLastEdge(
     startPos: number,
     fixedPos: number,
@@ -225,28 +185,23 @@ export function expandCornersToGridEdges(
     let lastEdgeEnd = startPos
     let inEdge = false
     let edgeStart = 0
-
     for (let i = 1; i <= MAX_SEARCH; i++) {
       const pos = startPos + step * i
       if (step > 0 && pos >= (horizontal ? width - 1 : height - 1)) break
       if (step < 0 && pos <= 0) break
-
       const x = horizontal ? pos : fixedPos
       const y = horizontal ? fixedPos : pos
       const lum = getLuminosity(data, width, x, y)
       const diff = Math.abs(lum - refLum)
-
       if (!inEdge && diff > THRESHOLD) {
         inEdge = true
         edgeStart = pos
       } else if (inEdge && diff <= THRESHOLD) {
         inEdge = false
-        const edgeWidth = Math.abs(pos - edgeStart)
-        if (edgeWidth > 15) break // zone épaisse (texte, hors grille)
+        if (Math.abs(pos - edgeStart) > 15) break
         lastEdgeEnd = pos
       }
     }
-
     return lastEdgeEnd
   }
 
@@ -260,22 +215,20 @@ export function expandCornersToGridEdges(
 
   const refLumH = (refLuminosity(x1, midY) + refLuminosity(x2, midY)) / 2
   const refLumV = (refLuminosity(midX, y1) + refLuminosity(midX, y2)) / 2
+  logData(log, 'Luminosité référence', { H: refLumH.toFixed(3), V: refLumV.toFixed(3) })
 
-  // Vers les indices (haut, gauche) : premier trait seulement
   const left = findFirstEdge(x1, midY, -1, true, refLumH)
   const top = findFirstEdge(y1, midX, -1, false, refLumV)
-  // Vers l'extérieur (bas, droite) : dernier trait
   const right = findLastEdge(x2, midY, 1, true, refLumH)
   const bottom = findLastEdge(y2, midX, 1, false, refLumV)
 
-  const result: [Point, Point] = [
+  logStep(log, 'Gauche (1er trait)', `${x1} → ${left}`)
+  logStep(log, 'Haut (1er trait)', `${y1} → ${top}`)
+  logStep(log, 'Droite (dernier trait)', `${x2} → ${right}`)
+  logStep(log, 'Bas (dernier trait)', `${y2} → ${bottom}`)
+
+  return [
     { x: left, y: top },
     { x: right, y: bottom },
   ]
-  if (debug) {
-    console.log('[expand] input', { p1, p2 })
-    console.log('[expand] refLum', { H: refLumH.toFixed(3), V: refLumV.toFixed(3) })
-    console.log('[expand] result', { left, top, right, bottom })
-  }
-  return result
 }
