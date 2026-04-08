@@ -5,7 +5,7 @@ import { generatePuzzle, type Difficulty } from '@/lib/generator'
 import { useGame } from '@/hooks/useGame'
 import { useTranslation } from '@/i18n/useTranslation'
 
-export type ImportMode = 'image' | 'camera'
+export type ImportMode = 'image' | 'camera' | 'photo'
 
 interface HomePageProps {
   onImport: (mode: ImportMode) => void
@@ -110,6 +110,17 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
               <div>
                 <span className="font-semibold text-gray-900 block">{t.home.takePhoto}</span>
                 <span className="text-sm text-gray-500">{t.home.takePhotoDesc}</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => onImport('photo')}
+              className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
+            >
+              <span className="text-3xl">🖼️</span>
+              <div>
+                <span className="font-semibold text-gray-900 block">{t.photoToPuzzle.title}</span>
+                <span className="text-sm text-gray-500">{t.photoToPuzzle.titleDesc}</span>
               </div>
             </button>
 

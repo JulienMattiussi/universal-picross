@@ -105,6 +105,20 @@ export interface TranslationKeys {
     validateNext: string
   }
 
+  photoToPuzzle: {
+    title: string
+    titleDesc: string
+    chooseSize: string
+    convert: string
+    processing: string
+    preview: string
+    previewDesc: string
+    confirmAndPlay: string
+    notUnique: string
+    playAnyway: string
+    tooEmpty: string
+  }
+
   options: {
     title: string
     language: string

@@ -4,6 +4,7 @@ import type { InputMode } from '@/components/game/GameGrid'
 import InputModeToggle from '@/components/game/InputModeToggle'
 import VictoryOverlay from '@/components/game/VictoryOverlay'
 import ImportPanel from '@/components/importer/ImportPanel'
+import PhotoToPuzzlePanel from '@/components/photoToPuzzle/PhotoToPuzzlePanel'
 import SolverPanel from '@/components/solver/SolverPanel'
 import Button from '@/components/ui/Button'
 import { useGame } from '@/hooks/useGame'
@@ -11,8 +12,8 @@ import { useTimer } from '@/hooks/useTimer'
 import { useTranslation } from '@/i18n/useTranslation'
 
 interface GamePageProps {
-  /** Mode d'entrée : 'image' ou 'camera' pour le flux import, undefined pour un puzzle généré */
-  importMode?: 'image' | 'camera'
+  /** Mode d'entrée : 'image'/'camera' pour OCR, 'photo' pour photo-to-puzzle, undefined pour génération */
+  importMode?: 'image' | 'camera' | 'photo'
   onBack: () => void
 }
 
@@ -69,10 +70,14 @@ export default function GamePage({ importMode, onBack }: GamePageProps) {
         </button>
       </div>
 
-      {/* Flux import (image/caméra) */}
+      {/* Flux import */}
       {showImport && (
         <div className="w-full max-w-sm">
-          <ImportPanel mode={importMode} />
+          {importMode === 'photo' ? (
+            <PhotoToPuzzlePanel mode="image" />
+          ) : (
+            <ImportPanel mode={importMode!} />
+          )}
         </div>
       )}
 
