@@ -57,6 +57,8 @@ export const fr: TranslationKeys = {
     instructionAuto: 'Grille détectée automatiquement. Ajustez si nécessaire, puis validez.',
     instructionManual: 'Glissez les points pour ajuster, puis validez.',
     validateSelection: 'Valider la sélection',
+    detectedBW: 'Grille détectée automatiquement. (N&B)',
+    detectedColor: 'Grille détectée automatiquement. (Couleur)',
   },
   uploader: {
     dropOrClick: 'Glissez une image ici ou',

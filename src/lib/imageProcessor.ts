@@ -16,11 +16,41 @@ export interface GridCellsResult {
   rowClueCells: string[]
   /** Cases intérieures de la grille de jeu, [nRows][nCols] */
   interiorCells: string[][]
+  /** true si l'image a été détectée comme colorée */
+  colored: boolean
 }
 
 // ---------------------------------------------------------------------------
 // Détection de grille par analyse de projections (canvas 2D pur, sans libs)
 // ---------------------------------------------------------------------------
+
+/**
+ * Détermine si l'image est colorée ou noir & blanc.
+ * Mesure la saturation moyenne (espace HSL) sur un échantillon de pixels,
+ * en ignorant les pixels très sombres (< 0.1) et très clairs (> 0.9) qui
+ * n'apportent pas d'information chromatique fiable.
+ */
+function isColorImage(imageData: ImageData): boolean {
+  const { data } = imageData
+  const n = data.length / 4
+  const step = Math.max(1, Math.floor(n / 2000))
+  let totalSat = 0
+  let count = 0
+  for (let i = 0; i < n; i += step) {
+    const r = data[i * 4] / 255
+    const g = data[i * 4 + 1] / 255
+    const b = data[i * 4 + 2] / 255
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const l = (max + min) / 2
+    if (l < 0.1 || l > 0.9) continue
+    if (max === min) continue
+    const sat = l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min)
+    totalSat += sat
+    count++
+  }
+  return count > 0 && totalSat / count > 0.15
+}
 
 function toGrayscale(imageData: ImageData): Float32Array {
   const { width, height, data } = imageData
@@ -112,6 +142,94 @@ interface GridStructure {
   colLines: number[]
 }
 
+/**
+ * Profil de variation (edges) : pour chaque ligne/colonne, mesure la différence
+ * de luminosité moyenne avec ses voisines. Les lignes de grille (même claires)
+ * créent des transitions de luminosité détectables.
+ */
+function rowEdgeProfile(gray: Float32Array, width: number, height: number): Float32Array {
+  const avg = new Float32Array(height)
+  for (let y = 0; y < height; y++) {
+    let sum = 0
+    for (let x = 0; x < width; x++) sum += gray[y * width + x]
+    avg[y] = sum / width
+  }
+  const profile = new Float32Array(height)
+  for (let y = 1; y < height - 1; y++) {
+    profile[y] = Math.abs(avg[y] - avg[y - 1]) + Math.abs(avg[y] - avg[y + 1])
+  }
+  return profile
+}
+
+function colEdgeProfile(gray: Float32Array, width: number, height: number): Float32Array {
+  const avg = new Float32Array(width)
+  for (let x = 0; x < width; x++) {
+    let sum = 0
+    for (let y = 0; y < height; y++) sum += gray[y * width + x]
+    avg[x] = sum / height
+  }
+  const profile = new Float32Array(width)
+  for (let x = 1; x < width - 1; x++) {
+    profile[x] = Math.abs(avg[x] - avg[x - 1]) + Math.abs(avg[x] - avg[x + 1])
+  }
+  return profile
+}
+
+/**
+ * Profil de clarté : proportion de pixels clairs par ligne/colonne.
+ * Utile pour détecter des lignes de grille claires sur fond coloré.
+ */
+function rowLightnessProfile(gray: Float32Array, width: number, height: number): Float32Array {
+  const p = new Float32Array(height)
+  for (let y = 0; y < height; y++) {
+    let light = 0
+    for (let x = 0; x < width; x++) if (gray[y * width + x] > 0.5) light++
+    p[y] = light / width
+  }
+  return p
+}
+
+function colLightnessProfile(gray: Float32Array, width: number, height: number): Float32Array {
+  const p = new Float32Array(width)
+  for (let x = 0; x < width; x++) {
+    let light = 0
+    for (let y = 0; y < height; y++) if (gray[y * width + x] > 0.5) light++
+    p[x] = light / height
+  }
+  return p
+}
+
+function tryFindGrid(
+  hProfile: Float32Array,
+  vProfile: Float32Array,
+  thresholds: number[],
+): GridStructure | null {
+  for (const threshold of thresholds) {
+    const rowLines = findRegularLines(findLineCenters(hProfile, threshold))
+    const colLines = findRegularLines(findLineCenters(vProfile, threshold))
+    if (rowLines && colLines && rowLines.length >= 4 && colLines.length >= 4)
+      return { rowLines, colLines }
+  }
+  return null
+}
+
+/**
+ * Détection conservative : lignes sombres uniquement.
+ * Utilisée par detectGridBounds sur l'image complète (évite les faux positifs
+ * dans les zones de texte/indices).
+ */
+function detectGridStructureDark(imageData: ImageData): GridStructure | null {
+  const { width, height } = imageData
+  const gray = toGrayscale(imageData)
+  const hDark = rowDarknessProfile(gray, width, height)
+  const vDark = colDarknessProfile(gray, width, height)
+  return tryFindGrid(hDark, vDark, [0.5, 0.4, 0.35, 0.3, 0.25, 0.2])
+}
+
+/**
+ * Détection standard : lignes sombres uniquement.
+ * Code identique à l'algorithme original qui fonctionnait sur les grilles N&B.
+ */
 function detectGridStructure(imageData: ImageData): GridStructure | null {
   const { width, height } = imageData
   const gray = toGrayscale(imageData)
@@ -128,12 +246,39 @@ function detectGridStructure(imageData: ImageData): GridStructure | null {
 }
 
 /**
+ * Détection étendue : essaie 3 stratégies en cascade.
+ * Utilisée uniquement en fallback quand detectGridStructure échoue.
+ */
+function detectGridStructureExtended(imageData: ImageData): GridStructure | null {
+  // D'abord la détection standard
+  const standard = detectGridStructure(imageData)
+  if (standard) return standard
+
+  const { width, height } = imageData
+  const gray = toGrayscale(imageData)
+
+  // Transitions de luminosité (grilles avec traits clairs ou colorés)
+  const hEdge = rowEdgeProfile(gray, width, height)
+  const vEdge = colEdgeProfile(gray, width, height)
+  const edgeResult = tryFindGrid(hEdge, vEdge, [0.08, 0.06, 0.04, 0.03, 0.02])
+  if (edgeResult) return edgeResult
+
+  // Lignes claires (grilles claires sur fond coloré)
+  const hLight = rowLightnessProfile(gray, width, height)
+  const vLight = colLightnessProfile(gray, width, height)
+  const lightResult = tryFindGrid(hLight, vLight, [0.5, 0.4, 0.35, 0.3, 0.25, 0.2])
+  if (lightResult) return lightResult
+
+  return null
+}
+
+/**
  * Tente de détecter automatiquement les bords de la grille de jeu sur l'image complète.
  * Retourne les deux coins opposés (haut-gauche, bas-droit) en coordonnées image,
  * ou null si aucune grille régulière n'est trouvée.
  */
 export function detectGridBounds(imageData: ImageData): [Point, Point] | null {
-  const grid = detectGridStructure(imageData)
+  const grid = detectGridStructureDark(imageData)
   if (!grid) return null
   const { rowLines, colLines } = grid
   if (rowLines.length < 4 || colLines.length < 4) return null
@@ -395,6 +540,14 @@ export function extractGridCells(
 
   const canvas = imageDataToCanvas(imageData)
 
+  // Analyse de la couleur sur la zone croppée (pas l'image complète qui peut
+  // avoir des éléments UI colorés autour de la grille N&B)
+  const croppedForColor = cropCanvas(canvas, origX1, origY1, origX2 - origX1, origY2 - origY1)
+    .getContext('2d')!
+    .getImageData(0, 0, origX2 - origX1, origY2 - origY1)
+  const colored = isColorImage(croppedForColor)
+  const detect = colored ? detectGridStructureExtended : detectGridStructure
+
   // Tente la détection avec la sélection exacte, puis en élargissant par paliers
   // de 5 px pour capturer les lignes extérieures coupées par un cadrage serré.
   const EXPAND_PX = [0, 5, 10, 15]
@@ -416,7 +569,7 @@ export function extractGridCells(
       .getContext('2d')!
       .getImageData(0, 0, selW, selH)
 
-    grid = detectGridStructure(croppedData)
+    grid = detect(croppedData)
     if (grid) break
   }
 
@@ -468,7 +621,7 @@ export function extractGridCells(
     cell(x1 - clueW, y1 + i * cellH, clueW, cellH),
   )
 
-  return { nRows, nCols, colClueCells, rowClueCells, interiorCells }
+  return { nRows, nCols, colClueCells, rowClueCells, interiorCells, colored }
 }
 
 /**

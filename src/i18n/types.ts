@@ -64,6 +64,8 @@ export interface TranslationKeys {
     instructionAuto: string
     instructionManual: string
     validateSelection: string
+    detectedBW: string
+    detectedColor: string
   }
 
   uploader: {

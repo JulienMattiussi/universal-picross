@@ -184,7 +184,14 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
             ←
           </button>
         )}
-        <h3 className="font-semibold text-txt">{PHASE_TITLES[phase]}</h3>
+        <h3 className="font-semibold text-txt">
+          {PHASE_TITLES[phase]}
+          {gridCells && phase !== 'upload' && phase !== 'selecting' && phase !== 'extracting' && (
+            <span className="ml-2 text-xs font-normal text-txt-muted">
+              ({gridCells.colored ? 'Color' : 'N&B'})
+            </span>
+          )}
+        </h3>
       </div>
 
       {/* Phase upload */}

@@ -56,6 +56,8 @@ export const en: TranslationKeys = {
     instructionAuto: 'Grid detected automatically. Adjust if needed, then confirm.',
     instructionManual: 'Drag the points to adjust, then confirm.',
     validateSelection: 'Confirm selection',
+    detectedBW: 'Grid detected automatically. (B&W)',
+    detectedColor: 'Grid detected automatically. (Color)',
   },
   uploader: {
     dropOrClick: 'Drop an image here or',

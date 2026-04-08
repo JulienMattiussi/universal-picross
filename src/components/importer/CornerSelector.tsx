@@ -106,9 +106,16 @@ export default function CornerSelector({
       const ry = Math.min(c1.y, c2.y)
       const rw = Math.abs(c2.x - c1.x)
       const rh = Math.abs(c2.y - c1.y)
+      // Sauvegarder l'image affichée avant le masque
+      const snapshot = ctx.getImageData(0, 0, displayW, displayH)
       ctx.fillStyle = 'rgba(0,0,0,0.38)'
       ctx.fillRect(0, 0, displayW, displayH)
-      ctx.drawImage(tmp, rx, ry, rw, rh, rx, ry, rw, rh)
+      // Restaurer uniquement la zone sélectionnée depuis le snapshot
+      const clipCanvas = document.createElement('canvas')
+      clipCanvas.width = displayW
+      clipCanvas.height = displayH
+      clipCanvas.getContext('2d')!.putImageData(snapshot, 0, 0)
+      ctx.drawImage(clipCanvas, rx, ry, rw, rh, rx, ry, rw, rh)
       ctx.strokeStyle = MARKER_COLOR
       ctx.lineWidth = 2
       ctx.setLineDash([])

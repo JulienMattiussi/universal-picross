@@ -57,6 +57,8 @@ export const de: TranslationKeys = {
     instructionAuto: 'Raster automatisch erkannt. Passen Sie es bei Bedarf an und bestätigen Sie.',
     instructionManual: 'Ziehen Sie die Punkte zum Anpassen, dann bestätigen.',
     validateSelection: 'Auswahl bestätigen',
+    detectedBW: 'Raster automatisch erkannt. (S&W)',
+    detectedColor: 'Raster automatisch erkannt. (Farbe)',
   },
   uploader: {
     dropOrClick: 'Bild hierher ziehen oder',

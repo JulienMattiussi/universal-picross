@@ -57,6 +57,8 @@ export const es: TranslationKeys = {
     instructionAuto: 'Cuadrícula detectada automáticamente. Ajusta si es necesario y confirma.',
     instructionManual: 'Arrastra los puntos para ajustar, luego confirma.',
     validateSelection: 'Confirmar selección',
+    detectedBW: 'Cuadrícula detectada automáticamente. (B&N)',
+    detectedColor: 'Cuadrícula detectada automáticamente. (Color)',
   },
   uploader: {
     dropOrClick: 'Arrastra una imagen aquí o',

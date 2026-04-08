@@ -57,6 +57,8 @@ export const it: TranslationKeys = {
     instructionAuto: 'Griglia rilevata automaticamente. Regola se necessario, poi conferma.',
     instructionManual: 'Trascina i punti per regolare, poi conferma.',
     validateSelection: 'Conferma selezione',
+    detectedBW: 'Griglia rilevata automaticamente. (B&N)',
+    detectedColor: 'Griglia rilevata automaticamente. (Colore)',
   },
   uploader: {
     dropOrClick: "Trascina un'immagine qui o",
