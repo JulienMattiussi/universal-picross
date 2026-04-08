@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import HomePage, { type ImportMode } from '@/pages/HomePage'
 import GamePage from '@/pages/GamePage'
 import OptionsPage from '@/pages/OptionsPage'
+import TemplatesPage from '@/pages/TemplatesPage'
 import { useDebugStore } from '@/store/debugStore'
 import { useGameStore } from '@/store/gameStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { isOCRCached, preloadOCR } from '@/lib/preloadOCR'
 
-type Page = 'home' | 'game' | 'options'
+type Page = 'home' | 'game' | 'options' | 'templates'
 
 export default function App() {
   const { debug, toggle } = useDebugStore()
@@ -62,9 +63,13 @@ export default function App() {
       )}
       {page === 'game' && <GamePage importMode={importMode} onBack={goHome} />}
       {page === 'options' && <OptionsPage onBack={goHome} />}
+      {page === 'templates' && <TemplatesPage onBack={goHome} />}
 
       {debug && (
-        <div className="fixed top-3 right-3 bg-surface-inverse text-txt-inverse text-xs font-mono px-2 py-0.5 rounded-full select-none pointer-events-none">
+        <div
+          className="fixed top-3 right-3 bg-surface-inverse text-txt-inverse text-xs font-mono px-2 py-0.5 rounded-full select-none cursor-pointer"
+          onClick={() => setPage('templates')}
+        >
           debug
         </div>
       )}

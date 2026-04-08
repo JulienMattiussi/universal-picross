@@ -158,6 +158,56 @@ export function removeGridLines(src: HTMLCanvasElement, threshold = 0.75): HTMLC
 }
 
 /**
+ * Supprime les bords noirs résiduels (bordures de grille coupées lors du découpage).
+ * Efface les lignes/colonnes sur les bords extérieurs tant qu'elles sont majoritairement noires.
+ */
+export function removeBorderArtifacts(src: HTMLCanvasElement, margin = 6): HTMLCanvasElement {
+  const ctx = src.getContext('2d')!
+  const imgData = ctx.getImageData(0, 0, src.width, src.height)
+  const { data, width, height } = imgData
+
+  const isBlack = (x: number, y: number) => data[(y * width + x) * 4] === 0
+  const whiten = (x: number, y: number) => {
+    const i = (y * width + x) * 4
+    data[i] = data[i + 1] = data[i + 2] = 255
+  }
+
+  // Bord gauche
+  for (let x = 0; x < margin && x < width; x++) {
+    let black = 0
+    for (let y = 0; y < height; y++) if (isBlack(x, y)) black++
+    if (black / height > 0.4) for (let y = 0; y < height; y++) whiten(x, y)
+  }
+
+  // Bord droit
+  for (let x = width - 1; x >= width - margin && x >= 0; x--) {
+    let black = 0
+    for (let y = 0; y < height; y++) if (isBlack(x, y)) black++
+    if (black / height > 0.4) for (let y = 0; y < height; y++) whiten(x, y)
+  }
+
+  // Bord haut
+  for (let y = 0; y < margin && y < height; y++) {
+    let black = 0
+    for (let x = 0; x < width; x++) if (isBlack(x, y)) black++
+    if (black / width > 0.4) for (let x = 0; x < width; x++) whiten(x, y)
+  }
+
+  // Bord bas
+  for (let y = height - 1; y >= height - margin && y >= 0; y--) {
+    let black = 0
+    for (let x = 0; x < width; x++) if (isBlack(x, y)) black++
+    if (black / width > 0.4) for (let x = 0; x < width; x++) whiten(x, y)
+  }
+
+  const out = document.createElement('canvas')
+  out.width = width
+  out.height = height
+  out.getContext('2d')!.putImageData(imgData, 0, 0)
+  return out
+}
+
+/**
  * Rogne au contenu noir utile (bounding-box des pixels noirs restants) + marge blanche.
  * Permet de présenter à Tesseract uniquement les chiffres, sans espace mort.
  */

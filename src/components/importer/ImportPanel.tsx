@@ -91,8 +91,11 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
     const total = cells.nCols + cells.nRows
     setRecognizeProgress({ done: 0, total })
     setPhase('recognizing')
-    const values = await recognizeAllClueCells(cells, (done, t) =>
-      setRecognizeProgress({ done, total: t }),
+    const isDebug = useDebugStore.getState().debug
+    const values = await recognizeAllClueCells(
+      cells,
+      (done, t) => setRecognizeProgress({ done, total: t }),
+      isDebug,
     )
 
     const parseClue = (s: string) =>

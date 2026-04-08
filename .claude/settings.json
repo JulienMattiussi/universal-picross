@@ -10,7 +10,8 @@
       "Bash(npm show:*)",
       "Bash(find:*)",
       "Bash(npm audit:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(npx prettier:*)"
     ]
   }
 }

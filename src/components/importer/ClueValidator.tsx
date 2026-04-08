@@ -1,7 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Button from '@/components/ui/Button'
 import type { GridCellsResult } from '@/lib/image'
 import { useTranslation } from '@/i18n/useTranslation'
+import { useDebugStore } from '@/store/debugStore'
+import {
+  adaptiveNormalize,
+  removeBorderArtifacts,
+  removeGridLines,
+  cropToContent,
+  upscaleCanvas,
+  addWhitePadding,
+} from '@/lib/image/canvas'
+import { segmentBlobs, extractBlob } from '@/lib/image/templateMatch'
 
 interface ClueValidatorProps {
   cells: GridCellsResult
@@ -19,6 +29,7 @@ export default function ClueValidator({
   onBack,
 }: ClueValidatorProps) {
   const t = useTranslation()
+  const { debug } = useDebugStore()
   const { nRows, nCols, colClueCells, rowClueCells } = cells
 
   // Flat sequence: col clues first (0..nCols-1), then row clues (nCols..nCols+nRows-1)
@@ -32,6 +43,27 @@ export default function ClueValidator({
     : t.validator.row.replace('{n}', String(current - nCols + 1))
   const imageUrl = isCol ? colClueCells[current] : rowClueCells[current - nCols]
   const isLast = current === total - 1
+
+  // En mode debug : générer les images segmentées de la case courante
+  const [blobUrls, setBlobUrls] = useState<string[]>([])
+  useEffect(() => {
+    if (!debug) return
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      canvas.getContext('2d')!.drawImage(img, 0, 0)
+      const cleaned = cropToContent(
+        removeGridLines(removeBorderArtifacts(adaptiveNormalize(canvas))),
+      )
+      const factor = Math.max(2, Math.ceil(128 / Math.min(cleaned.width, cleaned.height)))
+      const prepared = addWhitePadding(upscaleCanvas(cleaned, factor), 16)
+      const blobs = segmentBlobs(prepared)
+      setBlobUrls(blobs.map((b) => extractBlob(prepared, b).toDataURL('image/png')))
+    }
+    img.src = imageUrl
+  }, [imageUrl, debug])
 
   const updateValue = (val: string) => {
     setValues((prev) => {
@@ -82,8 +114,8 @@ export default function ClueValidator({
         )
       </div>
 
-      {/* Cell image */}
-      <div className="flex justify-center">
+      {/* Cell image + blobs segmentés en debug */}
+      <div className="flex justify-center items-end gap-3">
         <div
           className="border border-brd rounded-lg bg-surface-secondary overflow-hidden"
           style={{ width: 128, height: 128 }}
@@ -99,6 +131,28 @@ export default function ClueValidator({
             }}
           />
         </div>
+        {debug && blobUrls.length > 0 && (
+          <div className="flex gap-1">
+            {blobUrls.map((url, i) => (
+              <div
+                key={i}
+                className="border border-primary-300 rounded bg-surface-card overflow-hidden"
+                style={{ width: 48, height: 48 }}
+              >
+                <img
+                  src={url}
+                  alt={`Blob ${i + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    imageRendering: 'pixelated',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Label */}

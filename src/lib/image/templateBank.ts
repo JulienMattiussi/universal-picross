@@ -1,0 +1,309 @@
+/**
+ * Template bank: pre-rendered digit bitmaps (0-9) in multiple fonts.
+ * Generated at runtime via Canvas 2D, cached en mémoire.
+ */
+
+export const CANONICAL_W = 32
+export const CANONICAL_H = 48
+
+export interface DigitTemplate {
+  digit: number
+  bitmap: Uint8Array // binary: 0=black, 255=white, length = CANONICAL_W * CANONICAL_H
+}
+
+const FONTS = ['system-ui, sans-serif', '"Courier New", monospace', 'monospace', 'serif']
+
+const WEIGHTS = ['normal', 'bold']
+const SIZES = [32, 36, 40]
+
+/**
+ * Templates pixel-art dessinés manuellement pour les polices bitmap/LCD.
+ * Chaque chiffre est une grille 5×7 (0=noir, 1=blanc) qui sera upscalée
+ * à la taille canonique 32×48.
+ */
+const PIXEL_DIGITS: Record<number, number[][]> = {
+  0: [
+    [1, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+  ],
+  1: [
+    [1, 1, 0, 1, 1],
+    [1, 0, 0, 1, 1],
+    [1, 1, 0, 1, 1],
+    [1, 1, 0, 1, 1],
+    [1, 1, 0, 1, 1],
+    [1, 1, 0, 1, 1],
+    [1, 0, 0, 0, 1],
+  ],
+  2: [
+    [1, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [1, 1, 1, 1, 0],
+    [1, 1, 0, 0, 1],
+    [1, 0, 1, 1, 1],
+    [0, 1, 1, 1, 1],
+    [0, 0, 0, 0, 0],
+  ],
+  3: [
+    [1, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [1, 1, 1, 1, 0],
+    [1, 1, 0, 0, 1],
+    [1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+  ],
+  4: [
+    [1, 1, 1, 0, 1],
+    [1, 1, 0, 0, 1],
+    [1, 0, 1, 0, 1],
+    [0, 1, 1, 0, 1],
+    [0, 0, 0, 0, 0],
+    [1, 1, 1, 0, 1],
+    [1, 1, 1, 0, 1],
+  ],
+  5: [
+    [0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1],
+    [0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+  ],
+  6: [
+    [1, 0, 0, 0, 1],
+    [0, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1],
+    [0, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+  ],
+  7: [
+    [0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 0],
+    [1, 1, 1, 0, 1],
+    [1, 1, 0, 1, 1],
+    [1, 1, 0, 1, 1],
+    [1, 0, 1, 1, 1],
+    [1, 0, 1, 1, 1],
+  ],
+  8: [
+    [1, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+  ],
+  9: [
+    [1, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 0],
+    [1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+  ],
+}
+
+/**
+ * Templates police géométrique/futuriste (segments droits, style LCD étendu).
+ * Grille 7×7.
+ */
+const GEOMETRIC_DIGITS: Record<number, number[][]> = {
+  0: [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ],
+  1: [
+    [1, 1, 1, 1, 1, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+  ],
+  2: [
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1],
+    [0, 0, 0, 0, 0, 0, 0],
+  ],
+  3: [
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ],
+  4: [
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+  ],
+  5: [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1],
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ],
+  6: [
+    [0, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1],
+    [0, 0, 0, 0, 0, 0, 1],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ],
+  7: [
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+  ],
+  8: [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ],
+  9: [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [1, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+  ],
+}
+
+function renderPixelDigit(grid: number[][]): Uint8Array {
+  const srcH = grid.length
+  const srcW = grid[0].length
+  const bitmap = new Uint8Array(CANONICAL_W * CANONICAL_H)
+  bitmap.fill(255) // blanc par défaut
+
+  // Upscale avec nearest-neighbor, centré
+  const scaleX = Math.floor(CANONICAL_W / srcW)
+  const scaleY = Math.floor(CANONICAL_H / srcH)
+  const scale = Math.min(scaleX, scaleY)
+  const offX = Math.floor((CANONICAL_W - srcW * scale) / 2)
+  const offY = Math.floor((CANONICAL_H - srcH * scale) / 2)
+
+  for (let y = 0; y < srcH; y++) {
+    for (let x = 0; x < srcW; x++) {
+      const val = grid[y][x] === 0 ? 0 : 255
+      for (let dy = 0; dy < scale; dy++) {
+        for (let dx = 0; dx < scale; dx++) {
+          const px = offX + x * scale + dx
+          const py = offY + y * scale + dy
+          if (px < CANONICAL_W && py < CANONICAL_H) {
+            bitmap[py * CANONICAL_W + px] = val
+          }
+        }
+      }
+    }
+  }
+
+  return bitmap
+}
+
+let cachedBank: DigitTemplate[] | null = null
+
+function renderDigit(digit: number, font: string, weight: string, fontSize: number): Uint8Array {
+  const canvas = document.createElement('canvas')
+  canvas.width = CANONICAL_W
+  canvas.height = CANONICAL_H
+  const ctx = canvas.getContext('2d')!
+
+  // Fond blanc
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, CANONICAL_W, CANONICAL_H)
+
+  // Chiffre noir centré
+  ctx.fillStyle = '#000000'
+  ctx.font = `${weight} ${fontSize}px ${font}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(String(digit), CANONICAL_W / 2, CANONICAL_H / 2)
+
+  // Extraire en binaire
+  const data = ctx.getImageData(0, 0, CANONICAL_W, CANONICAL_H).data
+  const n = CANONICAL_W * CANONICAL_H
+  const bitmap = new Uint8Array(n)
+  for (let i = 0; i < n; i++) {
+    // Luminosité > 128 → blanc (255), sinon noir (0)
+    const lum = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]
+    bitmap[i] = lum > 128 ? 255 : 0
+  }
+  return bitmap
+}
+
+function generateBank(): DigitTemplate[] {
+  const templates: DigitTemplate[] = []
+
+  // Templates rendus par Canvas (polices système)
+  for (const font of FONTS) {
+    for (const weight of WEIGHTS) {
+      for (const size of SIZES) {
+        for (let digit = 0; digit <= 9; digit++) {
+          templates.push({
+            digit,
+            bitmap: renderDigit(digit, font, weight, size),
+          })
+        }
+      }
+    }
+  }
+
+  // Templates pixel-art dessinés manuellement
+  for (const pixelSet of [PIXEL_DIGITS, GEOMETRIC_DIGITS]) {
+    for (let digit = 0; digit <= 9; digit++) {
+      templates.push({
+        digit,
+        bitmap: renderPixelDigit(pixelSet[digit]),
+      })
+    }
+  }
+
+  return templates
+}
+
+export function getTemplateBank(): DigitTemplate[] {
+  if (!cachedBank) cachedBank = generateBank()
+  return cachedBank
+}
