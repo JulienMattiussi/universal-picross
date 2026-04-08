@@ -12,6 +12,7 @@ import {
   type Point,
 } from '@/lib/imageProcessor'
 import { puzzleFromSolution } from '@/lib/generator'
+import { solve } from '@/lib/solver'
 import { useGame } from '@/hooks/useGame'
 
 type Tab = 'upload' | 'camera'
@@ -39,6 +40,7 @@ export default function ImportPanel() {
     rows: string[]
     cols: string[]
   } | null>(null)
+  const [isSolvable, setIsSolvable] = useState<boolean | null>(null)
 
   const handleImage = (data: ImageData) => {
     setImageData(data)
@@ -80,6 +82,23 @@ export default function ImportPanel() {
     const values = await recognizeAllClueCells(gridCells, (done, t) =>
       setRecognizeProgress({ done, total: t }),
     )
+
+    // Vérifie que les indices reconnus donnent un puzzle soluble
+    const parseClue = (s: string) =>
+      s
+        .split(/\s+/)
+        .map(Number)
+        .filter((n) => !isNaN(n) && n > 0)
+    const rowClues = values.rows.map(parseClue)
+    const colClues = values.cols.map(parseClue)
+    const size = Math.max(rowClues.length, colClues.length)
+    const checkPuzzle = puzzleFromSolution(
+      Array.from({ length: size }, () => Array(size).fill(false)),
+    )
+    checkPuzzle.clues.rows = rowClues
+    checkPuzzle.clues.cols = colClues
+    setIsSolvable(solve(checkPuzzle) !== null)
+
     setRecognizedValues(values)
     setPhase('validating')
   }
@@ -102,6 +121,7 @@ export default function ImportPanel() {
     setGridCells(null)
     setError(null)
     setRecognizedValues(null)
+    setIsSolvable(null)
   }
 
   // Retour d'une étape en arrière selon la phase courante
@@ -225,6 +245,7 @@ export default function ImportPanel() {
         <ClueValidator
           cells={gridCells}
           initialValues={recognizedValues}
+          solvable={isSolvable}
           onComplete={handleValidationComplete}
           onBack={() => setPhase('mosaic')}
         />

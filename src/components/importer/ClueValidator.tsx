@@ -5,6 +5,7 @@ import type { GridCellsResult } from '@/lib/imageProcessor'
 interface ClueValidatorProps {
   cells: GridCellsResult
   initialValues: { rows: string[]; cols: string[] }
+  solvable: boolean | null
   onComplete: (rowClues: number[][], colClues: number[][]) => void
   onBack: () => void
 }
@@ -12,6 +13,7 @@ interface ClueValidatorProps {
 export default function ClueValidator({
   cells,
   initialValues,
+  solvable,
   onComplete,
   onBack,
 }: ClueValidatorProps) {
@@ -60,6 +62,14 @@ export default function ClueValidator({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Avertissement grille non soluble */}
+      {solvable === false && (
+        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Aucune solution trouvée avec ces indices — la reconnaissance s'est probablement trompée
+          sur un ou plusieurs chiffres. Vérifiez et corrigez.
+        </div>
+      )}
+
       {/* Progress */}
       <div className="text-sm text-gray-500 font-medium">
         {label}&nbsp;&nbsp;({current + 1} sur {total})
