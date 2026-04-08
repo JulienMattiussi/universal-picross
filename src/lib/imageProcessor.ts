@@ -1150,13 +1150,11 @@ export function extractGridCells(
   const absColLines = grid.colLines.map((c) => x1 + c)
   const absRowLines = grid.rowLines.map((r) => y1 + r)
 
-  // Taille moyenne d'une case (pour les zones d'indices)
+  // Zone d'indices : espace disponible, limité à 6 cases max
   const avgCellW = (absColLines[absColLines.length - 1] - absColLines[0]) / nCols
   const avgCellH = (absRowLines[absRowLines.length - 1] - absRowLines[0]) / nRows
-
-  // Zone d'indices disponible : jusqu'à 2 cases, limitée par les bords de l'image
-  const clueW = Math.min(x1, Math.ceil(avgCellW * 2))
-  const clueH = Math.min(y1, Math.ceil(avgCellH * 2))
+  const clueW = Math.min(absColLines[0], Math.ceil(avgCellW * 6))
+  const clueH = Math.min(absRowLines[0], Math.ceil(avgCellH * 6))
 
   /** Extrait et retourne une data URL pour une sous-région de l'image originale */
   const cell = (cx: number, cy: number, cw: number, ch: number): string => {
