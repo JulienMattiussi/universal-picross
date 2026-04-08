@@ -1,0 +1,109 @@
+import type { TranslationKeys } from '../types'
+
+export const de: TranslationKeys = {
+  common: {
+    back: 'Startseite',
+    cancel: 'Abbrechen',
+    restart: 'Neustart',
+  },
+  home: {
+    subtitle: 'Nonogramme erstellen, spielen und lösen',
+    openImage: 'Bild öffnen',
+    openImageDesc: 'Ein Picross aus einer Datei importieren',
+    takePhoto: 'Foto aufnehmen',
+    takePhotoDesc: 'Ein Picross mit der Kamera scannen',
+    generate: 'Picross generieren',
+    generateDesc: 'Ein zufälliges Rätsel erstellen',
+    sizeLabel: 'Größe',
+    difficulty: 'Schwierigkeit',
+    easy: 'Einfach',
+    medium: 'Mittel',
+    hard: 'Schwer',
+    generateButton: 'Generieren',
+  },
+  game: {
+    bravo: 'Bravo!',
+    cheater: 'Schummler!',
+  },
+  inputMode: {
+    fill: 'Füllen',
+    mark: 'Markieren',
+    erase: 'Löschen',
+  },
+  solver: {
+    title: 'Automatischer Löser',
+    solveButton: 'Lösen',
+    solving: 'Löse…',
+    error: 'Dieses Rätsel kann nicht gelöst werden.',
+  },
+  import: {
+    phaseUploadImage: 'Bild laden',
+    phaseUploadCamera: 'Foto aufnehmen',
+    phaseSelecting: 'Rasterauswahl',
+    phaseMosaic: 'Schnittprüfung',
+    phaseRecognizing: 'Ziffernerkennung',
+    phaseValidating: 'Hinweisvalidierung',
+    phaseCorrecting: 'Hinweiskorrektur',
+    recognizingProgress: 'Ziffern werden erkannt…',
+    extracting: 'Raster wird in Zellen geschnitten…',
+    errorGridDetect:
+      'Rasterlinien konnten nicht erkannt werden. Versuchen Sie den Bereich genauer auszuwählen.',
+    errorCutting: 'Fehler beim Schneiden.',
+  },
+  corner: {
+    instruction1: 'Klicken Sie auf die erste Ecke des Rasters (z.B. oben links).',
+    instruction2: 'Klicken Sie auf die gegenüberliegende Ecke (z.B. unten rechts).',
+    instructionAuto: 'Raster automatisch erkannt. Passen Sie es bei Bedarf an und bestätigen Sie.',
+    instructionManual: 'Ziehen Sie die Punkte zum Anpassen, dann bestätigen.',
+    validateSelection: 'Auswahl bestätigen',
+  },
+  uploader: {
+    dropOrClick: 'Bild hierher ziehen oder',
+    clickToChoose: 'klicken zum Auswählen',
+    acceptedFormats: 'PNG, JPG, WebP akzeptiert',
+    processing: 'Bild wird verarbeitet…',
+  },
+  camera: {
+    capture: 'Aufnehmen',
+    photoTaken: 'Foto aufgenommen',
+    takePhotoButton: 'Foto aufnehmen',
+  },
+  mosaic: {
+    detected:
+      'Raster erkannt: {rows} × {cols}. Überprüfen Sie, ob jede Zelle korrekt geschnitten ist.',
+    legend: 'Orange Zellen = Hinweise (außerhalb). Graue Zellen = Spielraster.',
+    continueOCR: 'Weiter → Ziffernerkennung',
+    recrop: 'Neu zuschneiden',
+  },
+  corrector: {
+    noSolution:
+      'Keine Lösung mit den erkannten Hinweisen gefunden. Korrigieren Sie die falschen Werte und bestätigen Sie.',
+    columns: 'Spalten',
+    rows: 'Zeilen',
+    stillNoSolution:
+      'Das Raster hat immer noch keine Lösung. Bitte überprüfen Sie die Hinweise erneut.',
+    backButton: '← Zurück',
+    validateAndPlay: 'Bestätigen und spielen',
+  },
+  validator: {
+    noSolutionWarning:
+      'Keine Lösung mit diesen Hinweisen gefunden — die Erkennung hat sich wahrscheinlich bei einer oder mehreren Ziffern geirrt. Überprüfen und korrigieren Sie.',
+    column: 'Spalte {n}',
+    row: 'Zeile {n}',
+    xOfY: '{current} von {total}',
+    previous: '← Zurück',
+    finish: 'Fertig ✓',
+    validateNext: 'Bestätigen →',
+  },
+  options: {
+    title: 'Optionen',
+    language: 'Sprache',
+  },
+  languages: {
+    fr: 'Français',
+    en: 'English',
+    it: 'Italiano',
+    de: 'Deutsch',
+    es: 'Español',
+  },
+}

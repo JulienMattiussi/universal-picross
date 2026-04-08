@@ -17,6 +17,7 @@ import { puzzleFromSolution } from '@/lib/generator'
 import { solve } from '@/lib/solver'
 import { useGame } from '@/hooks/useGame'
 import { useDebugStore } from '@/store/debugStore'
+import { useTranslation } from '@/i18n/useTranslation'
 
 type Phase =
   | 'upload'
@@ -34,6 +35,7 @@ interface ImportPanelProps {
 export default function ImportPanel({ mode }: ImportPanelProps) {
   const { loadPuzzle, reset } = useGame()
   const { debug } = useDebugStore()
+  const t = useTranslation()
 
   const [phase, setPhase] = useState<Phase>('upload')
   const [imageData, setImageData] = useState<ImageData | null>(null)
@@ -66,9 +68,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
       try {
         const cells = extractGridCells(imageData, p1, p2)
         if (!cells) {
-          setError(
-            'Impossible de détecter les lignes de la grille. Essayez de sélectionner la zone plus précisément.',
-          )
+          setError(t.import.errorGridDetect)
           setPhase('selecting')
           return
         }
@@ -80,7 +80,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
           startRecognition(cells)
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erreur lors du découpage.')
+        setError(e instanceof Error ? e.message : t.import.errorCutting)
         setPhase('selecting')
       }
     }, 0)
@@ -160,13 +160,13 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
   }
 
   const PHASE_TITLES: Record<Phase, string> = {
-    upload: mode === 'image' ? 'Charger une image' : 'Prendre une photo',
-    selecting: 'Sélection de la grille',
-    extracting: 'Sélection de la grille',
-    mosaic: 'Vérification du découpage',
-    recognizing: 'Reconnaissance des chiffres',
-    validating: 'Validation des indices',
-    correcting: 'Correction des indices',
+    upload: mode === 'image' ? t.import.phaseUploadImage : t.import.phaseUploadCamera,
+    selecting: t.import.phaseSelecting,
+    extracting: t.import.phaseSelecting,
+    mosaic: t.import.phaseMosaic,
+    recognizing: t.import.phaseRecognizing,
+    validating: t.import.phaseValidating,
+    correcting: t.import.phaseCorrecting,
   }
 
   const back = goBack[phase]
@@ -212,7 +212,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
       {phase === 'extracting' && (
         <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
           <Spinner />
-          <span>Découpage de la grille en cases…</span>
+          <span>{t.import.extracting}</span>
         </div>
       )}
 
@@ -230,7 +230,7 @@ export default function ImportPanel({ mode }: ImportPanelProps) {
         <div className="flex flex-col items-center gap-3 py-4">
           <Spinner />
           <span className="text-sm text-gray-600 font-medium">
-            Reconnaissance des chiffres… ({recognizeProgress.done} / {recognizeProgress.total})
+            {t.import.recognizingProgress} ({recognizeProgress.done} / {recognizeProgress.total})
           </span>
           <div className="w-full bg-gray-100 rounded-full h-2">
             <div

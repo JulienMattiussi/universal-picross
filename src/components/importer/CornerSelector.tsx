@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '@/components/ui/Button'
 import type { Point } from '@/lib/imageProcessor'
+import { useTranslation } from '@/i18n/useTranslation'
 
 interface CornerSelectorProps {
   imageData: ImageData
@@ -22,6 +23,7 @@ export default function CornerSelector({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // Index du coin en cours de déplacement (-1 = aucun). Ref pour ne pas retriggerer les effets.
   const draggingIdx = useRef<number>(-1)
+  const t = useTranslation()
   const [cursor, setCursor] = useState<'crosshair' | 'grab' | 'grabbing'>('crosshair')
 
   const MAX_W = 560
@@ -153,11 +155,9 @@ export default function CornerSelector({
   }
 
   const instructions = [
-    'Cliquez sur le premier coin de la grille (ex : coin haut-gauche).',
-    'Cliquez sur le coin opposé (ex : coin bas-droit).',
-    initialCorners
-      ? 'Grille détectée automatiquement. Ajustez si nécessaire, puis validez.'
-      : 'Glissez les points pour ajuster, puis validez.',
+    t.corner.instruction1,
+    t.corner.instruction2,
+    initialCorners ? t.corner.instructionAuto : t.corner.instructionManual,
   ]
 
   return (
@@ -177,16 +177,16 @@ export default function CornerSelector({
       <div className="flex gap-2">
         {corners.length === 2 && (
           <Button onClick={handleConfirm} className="flex-1">
-            Valider la sélection
+            {t.corner.validateSelection}
           </Button>
         )}
         {corners.length > 0 && (
           <Button variant="secondary" onClick={() => setCorners([])}>
-            Recommencer
+            {t.common.restart}
           </Button>
         )}
         <Button variant="secondary" onClick={onCancel}>
-          Annuler
+          {t.common.cancel}
         </Button>
       </div>
     </div>

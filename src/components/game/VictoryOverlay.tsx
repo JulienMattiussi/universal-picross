@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from '@/i18n/useTranslation'
 
 interface VictoryOverlayProps {
   cheated: boolean
@@ -28,6 +29,7 @@ function makeConfetti(): Confetto[] {
 }
 
 export default function VictoryOverlay({ cheated }: VictoryOverlayProps) {
+  const t = useTranslation()
   const [visible, setVisible] = useState(true)
   const [confetti] = useState(makeConfetti)
 
@@ -73,7 +75,7 @@ export default function VictoryOverlay({ cheated }: VictoryOverlayProps) {
             cheated ? 'text-red-500' : 'text-primary-500',
           ].join(' ')}
         >
-          {cheated ? 'Tricheur !' : 'Bravo !'}
+          {cheated ? t.game.cheater : t.game.bravo}
         </span>
       </div>
     </div>

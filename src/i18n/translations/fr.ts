@@ -1,0 +1,108 @@
+import type { TranslationKeys } from '../types'
+
+export const fr: TranslationKeys = {
+  common: {
+    back: 'Accueil',
+    cancel: 'Annuler',
+    restart: 'Recommencer',
+  },
+  home: {
+    subtitle: 'Générez, jouez et résolvez des nonogrammes',
+    openImage: 'Ouvrir une image',
+    openImageDesc: 'Importer un picross depuis un fichier',
+    takePhoto: 'Prendre une photo',
+    takePhotoDesc: 'Scanner un picross avec la caméra',
+    generate: 'Générer un picross',
+    generateDesc: 'Créer un puzzle aléatoire',
+    sizeLabel: 'Taille',
+    difficulty: 'Difficulté',
+    easy: 'Facile',
+    medium: 'Moyen',
+    hard: 'Difficile',
+    generateButton: 'Générer',
+  },
+  game: {
+    bravo: 'Bravo !',
+    cheater: 'Tricheur !',
+  },
+  inputMode: {
+    fill: 'Remplir',
+    mark: 'Marquer',
+    erase: 'Effacer',
+  },
+  solver: {
+    title: 'Solveur automatique',
+    solveButton: 'Résoudre',
+    solving: 'Résolution…',
+    error: 'Impossible de résoudre ce puzzle.',
+  },
+  import: {
+    phaseUploadImage: 'Charger une image',
+    phaseUploadCamera: 'Prendre une photo',
+    phaseSelecting: 'Sélection de la grille',
+    phaseMosaic: 'Vérification du découpage',
+    phaseRecognizing: 'Reconnaissance des chiffres',
+    phaseValidating: 'Validation des indices',
+    phaseCorrecting: 'Correction des indices',
+    recognizingProgress: 'Reconnaissance des chiffres…',
+    extracting: 'Découpage de la grille en cases…',
+    errorGridDetect:
+      'Impossible de détecter les lignes de la grille. Essayez de sélectionner la zone plus précisément.',
+    errorCutting: 'Erreur lors du découpage.',
+  },
+  corner: {
+    instruction1: 'Cliquez sur le premier coin de la grille (ex : coin haut-gauche).',
+    instruction2: 'Cliquez sur le coin opposé (ex : coin bas-droit).',
+    instructionAuto: 'Grille détectée automatiquement. Ajustez si nécessaire, puis validez.',
+    instructionManual: 'Glissez les points pour ajuster, puis validez.',
+    validateSelection: 'Valider la sélection',
+  },
+  uploader: {
+    dropOrClick: 'Glissez une image ici ou',
+    clickToChoose: 'cliquez pour choisir',
+    acceptedFormats: 'PNG, JPG, WebP acceptés',
+    processing: "Traitement de l'image…",
+  },
+  camera: {
+    capture: 'Capturer',
+    photoTaken: 'Photo prise',
+    takePhotoButton: 'Prendre une photo',
+  },
+  mosaic: {
+    detected:
+      'Grille détectée : {rows} × {cols}. Vérifiez que chaque case est correctement découpée.',
+    legend: 'Cases oranges = indices (hors grille). Cases grises = intérieur de la grille de jeu.',
+    continueOCR: 'Continuer → Reconnaissance des chiffres',
+    recrop: 'Recadrer',
+  },
+  corrector: {
+    noSolution:
+      'Aucune solution trouvée avec les indices reconnus. Corrigez les valeurs incorrectes puis validez.',
+    columns: 'Colonnes',
+    rows: 'Lignes',
+    stillNoSolution: "La grille n'a toujours pas de solution. Vérifiez encore les indices.",
+    backButton: '← Retour',
+    validateAndPlay: 'Valider et jouer',
+  },
+  validator: {
+    noSolutionWarning:
+      "Aucune solution trouvée avec ces indices — la reconnaissance s'est probablement trompée sur un ou plusieurs chiffres. Vérifiez et corrigez.",
+    column: 'Colonne {n}',
+    row: 'Ligne {n}',
+    xOfY: '{current} sur {total}',
+    previous: '← Précédent',
+    finish: 'Terminer ✓',
+    validateNext: 'Valider →',
+  },
+  options: {
+    title: 'Options',
+    language: 'Langue',
+  },
+  languages: {
+    fr: 'Français',
+    en: 'English',
+    it: 'Italiano',
+    de: 'Deutsch',
+    es: 'Español',
+  },
+}

@@ -1,5 +1,6 @@
 import Button from '@/components/ui/Button'
 import type { GridCellsResult } from '@/lib/imageProcessor'
+import { useTranslation } from '@/i18n/useTranslation'
 
 interface GridMosaicProps {
   cells: GridCellsResult
@@ -15,6 +16,7 @@ interface GridMosaicProps {
  *   …
  */
 export default function GridMosaic({ cells, onConfirm, onRetry }: GridMosaicProps) {
+  const t = useTranslation()
   const { nRows, nCols, colClueCells, rowClueCells, interiorCells } = cells
 
   // On aplatit toutes les cases dans un tableau ordonné pour le CSS grid
@@ -49,11 +51,7 @@ export default function GridMosaic({ cells, onConfirm, onRetry }: GridMosaicProp
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-gray-600">
-        Grille détectée&nbsp;:{' '}
-        <span className="font-medium">
-          {nRows}&nbsp;×&nbsp;{nCols}
-        </span>
-        . Vérifiez que chaque case est correctement découpée.
+        {t.mosaic.detected.replace('{rows}', String(nRows)).replace('{cols}', String(nCols))}
       </p>
 
       <div className="overflow-auto rounded border border-gray-200 p-2">
@@ -92,16 +90,14 @@ export default function GridMosaic({ cells, onConfirm, onRetry }: GridMosaicProp
         </div>
       </div>
 
-      <p className="text-xs text-gray-400">
-        Cases oranges = indices (hors grille). Cases grises = intérieur de la grille de jeu.
-      </p>
+      <p className="text-xs text-gray-400">{t.mosaic.legend}</p>
 
       <div className="flex gap-2">
         <Button onClick={onConfirm} className="flex-1">
-          Continuer → Reconnaissance des chiffres
+          {t.mosaic.continueOCR}
         </Button>
         <Button variant="secondary" onClick={onRetry}>
-          Recadrer
+          {t.mosaic.recrop}
         </Button>
       </div>
     </div>

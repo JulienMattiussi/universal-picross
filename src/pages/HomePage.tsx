@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import { generatePuzzle, type Difficulty } from '@/lib/generator'
 import { useGame } from '@/hooks/useGame'
+import { useTranslation } from '@/i18n/useTranslation'
 
 export type ImportMode = 'image' | 'camera'
 
@@ -11,16 +12,17 @@ interface HomePageProps {
   onOptions: () => void
 }
 
-const DIFFICULTIES: { value: Difficulty; label: string }[] = [
-  { value: 'easy', label: 'Facile' },
-  { value: 'medium', label: 'Moyen' },
-  { value: 'hard', label: 'Difficile' },
-]
-
 export default function HomePage({ onImport, onGenerated, onOptions }: HomePageProps) {
   const { loadPuzzle } = useGame()
+  const t = useTranslation()
   const [size, setSize] = useState(10)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+
+  const difficulties: { value: Difficulty; label: string }[] = [
+    { value: 'easy', label: t.home.easy },
+    { value: 'medium', label: t.home.medium },
+    { value: 'hard', label: t.home.hard },
+  ]
 
   const handleGenerate = () => {
     const puzzle = generatePuzzle(size, difficulty)
@@ -30,7 +32,6 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
 
   return (
     <main className="flex flex-col items-center gap-8 py-8 px-4 min-h-svh">
-      {/* Header + lien options */}
       <header className="w-full max-w-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -40,7 +41,7 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
           <button
             onClick={onOptions}
             className="text-sm text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
-            aria-label="Options"
+            aria-label={t.options.title}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
               <path
@@ -51,47 +52,44 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
             </svg>
           </button>
         </div>
-        <p className="text-gray-500 text-sm mt-1">Générez, jouez et résolvez des nonogrammes</p>
+        <p className="text-gray-500 text-sm mt-1">{t.home.subtitle}</p>
       </header>
 
       <div className="w-full max-w-sm flex flex-col gap-4">
-        {/* Action 1 : Ouvrir une image */}
         <button
           onClick={() => onImport('image')}
           className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
         >
           <span className="text-3xl">📂</span>
           <div>
-            <span className="font-semibold text-gray-900 block">Ouvrir une image</span>
-            <span className="text-sm text-gray-500">Importer un picross depuis un fichier</span>
+            <span className="font-semibold text-gray-900 block">{t.home.openImage}</span>
+            <span className="text-sm text-gray-500">{t.home.openImageDesc}</span>
           </div>
         </button>
 
-        {/* Action 2 : Prendre une photo */}
         <button
           onClick={() => onImport('camera')}
           className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer text-left"
         >
           <span className="text-3xl">📷</span>
           <div>
-            <span className="font-semibold text-gray-900 block">Prendre une photo</span>
-            <span className="text-sm text-gray-500">Scanner un picross avec la caméra</span>
+            <span className="font-semibold text-gray-900 block">{t.home.takePhoto}</span>
+            <span className="text-sm text-gray-500">{t.home.takePhotoDesc}</span>
           </div>
         </button>
 
-        {/* Action 3 : Générer */}
         <div className="flex flex-col gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center gap-4">
             <span className="text-3xl">🎲</span>
             <div>
-              <span className="font-semibold text-gray-900 block">Générer un picross</span>
-              <span className="text-sm text-gray-500">Créer un puzzle aléatoire</span>
+              <span className="font-semibold text-gray-900 block">{t.home.generate}</span>
+              <span className="text-sm text-gray-500">{t.home.generateDesc}</span>
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-sm text-gray-600">
-              Taille :{' '}
+              {t.home.sizeLabel} :{' '}
               <span className="font-medium">
                 {size}×{size}
               </span>
@@ -111,9 +109,9 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-sm text-gray-600">Difficulté</span>
+            <span className="text-sm text-gray-600">{t.home.difficulty}</span>
             <div className="flex gap-2">
-              {DIFFICULTIES.map(({ value, label }) => (
+              {difficulties.map(({ value, label }) => (
                 <button
                   key={value}
                   className={[
@@ -131,7 +129,7 @@ export default function HomePage({ onImport, onGenerated, onOptions }: HomePageP
           </div>
 
           <Button onClick={handleGenerate} className="w-full">
-            Générer
+            {t.home.generateButton}
           </Button>
         </div>
       </div>

@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import { useCamera } from '@/hooks/useCamera'
+import { useTranslation } from '@/i18n/useTranslation'
 
 interface CameraCaptureProps {
   onCapture: (imageData: ImageData) => void
 }
 
 export default function CameraCapture({ onCapture }: CameraCaptureProps) {
+  const t = useTranslation()
   const { videoRef, isStreaming, error, startCamera, stopCamera, captureFrame } = useCamera()
   const [captured, setCaptured] = useState(false)
 
@@ -28,16 +30,16 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
           <video ref={videoRef} className="w-full rounded-lg bg-black" playsInline muted />
           <div className="flex gap-2">
             <Button onClick={handleCapture} className="flex-1">
-              Capturer
+              {t.camera.capture}
             </Button>
             <Button variant="secondary" onClick={stopCamera}>
-              Annuler
+              {t.common.cancel}
             </Button>
           </div>
         </>
       ) : (
         <Button variant="secondary" onClick={startCamera} disabled={captured} className="w-full">
-          {captured ? 'Photo prise ✓' : '📷 Prendre une photo'}
+          {captured ? `${t.camera.photoTaken} ✓` : `📷 ${t.camera.takePhotoButton}`}
         </Button>
       )}
     </div>

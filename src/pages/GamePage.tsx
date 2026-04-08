@@ -8,6 +8,7 @@ import SolverPanel from '@/components/solver/SolverPanel'
 import Button from '@/components/ui/Button'
 import { useGame } from '@/hooks/useGame'
 import { useTimer } from '@/hooks/useTimer'
+import { useTranslation } from '@/i18n/useTranslation'
 
 interface GamePageProps {
   /** Mode d'entrée : 'image' ou 'camera' pour le flux import, undefined pour un puzzle généré */
@@ -17,6 +18,7 @@ interface GamePageProps {
 
 export default function GamePage({ importMode, onBack }: GamePageProps) {
   const { puzzle, grid, status, cheated, fillCell, markCell, clearCell, reset } = useGame()
+  const t = useTranslation()
   const { formatted } = useTimer()
   const boardRef = useRef<HTMLDivElement>(null)
   const [inputMode, setInputMode] = useState<InputMode>('fill')
@@ -47,7 +49,7 @@ export default function GamePage({ importMode, onBack }: GamePageProps) {
           onClick={onBack}
           className="text-sm text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
         >
-          ← Accueil
+          ← {t.common.back}
         </button>
       </div>
 
@@ -71,11 +73,11 @@ export default function GamePage({ importMode, onBack }: GamePageProps) {
               <span
                 className={cheated ? 'text-red-500 font-semibold' : 'text-green-600 font-semibold'}
               >
-                {cheated ? 'Tricheur !' : 'Bravo !'}
+                {cheated ? t.game.cheater : t.game.bravo}
               </span>
             )}
             <Button variant="ghost" size="sm" onClick={reset}>
-              Recommencer
+              {t.common.restart}
             </Button>
           </div>
 

@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react'
 import Spinner from '@/components/ui/Spinner'
+import { useTranslation } from '@/i18n/useTranslation'
 
 interface ImageUploaderProps {
   onImage: (imageData: ImageData) => void
 }
 
 export default function ImageUploader({ onImage }: ImageUploaderProps) {
+  const t = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -70,15 +72,15 @@ export default function ImageUploader({ onImage }: ImageUploaderProps) {
       {loading ? (
         <div className="flex flex-col items-center gap-2">
           <Spinner />
-          <span className="text-sm text-gray-500">Traitement de l'image…</span>
+          <span className="text-sm text-gray-500">{t.uploader.processing}</span>
         </div>
       ) : (
         <>
           <p className="text-gray-500 text-sm">
-            Glissez une image ici ou{' '}
-            <span className="text-primary-600 font-medium">cliquez pour choisir</span>
+            {t.uploader.dropOrClick}{' '}
+            <span className="text-primary-600 font-medium">{t.uploader.clickToChoose}</span>
           </p>
-          <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP acceptés</p>
+          <p className="text-xs text-gray-400 mt-1">{t.uploader.acceptedFormats}</p>
         </>
       )}
     </div>

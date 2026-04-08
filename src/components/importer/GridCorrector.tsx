@@ -3,6 +3,7 @@ import Button from '@/components/ui/Button'
 import { puzzleFromSolution } from '@/lib/generator'
 import { solve } from '@/lib/solver'
 import type { GridCellsResult } from '@/lib/imageProcessor'
+import { useTranslation } from '@/i18n/useTranslation'
 
 interface GridCorrectorProps {
   cells: GridCellsResult
@@ -17,6 +18,7 @@ export default function GridCorrector({
   onComplete,
   onBack,
 }: GridCorrectorProps) {
+  const t = useTranslation()
   const { nRows, nCols, colClueCells, rowClueCells } = cells
 
   const [colValues, setColValues] = useState<string[]>([...initialValues.cols])
@@ -41,7 +43,7 @@ export default function GridCorrector({
     checkPuzzle.clues.cols = colClues
 
     if (solve(checkPuzzle) === null) {
-      setError("La grille n'a toujours pas de solution. Vérifiez encore les indices.")
+      setError(t.corrector.stillNoSolution)
       return
     }
 
@@ -66,14 +68,13 @@ export default function GridCorrector({
   return (
     <div className="flex flex-col gap-4">
       <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-        Aucune solution trouvée avec les indices reconnus. Corrigez les valeurs incorrectes puis
-        validez.
+        {t.corrector.noSolution}
       </div>
 
       {/* Colonnes */}
       <div>
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-          Colonnes ({nCols})
+          {t.corrector.columns} ({nCols})
         </p>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {Array.from({ length: nCols }, (_, i) => (
@@ -81,7 +82,7 @@ export default function GridCorrector({
               <div className="w-14 h-14 border border-gray-200 rounded bg-gray-50 overflow-hidden">
                 <img
                   src={colClueCells[i]}
-                  alt={`Col ${i + 1}`}
+                  alt={`${t.corrector.columns} ${i + 1}`}
                   style={{
                     width: '100%',
                     height: '100%',
@@ -105,7 +106,7 @@ export default function GridCorrector({
       {/* Lignes */}
       <div>
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-          Lignes ({nRows})
+          {t.corrector.rows} ({nRows})
         </p>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {Array.from({ length: nRows }, (_, i) => (
@@ -113,7 +114,7 @@ export default function GridCorrector({
               <div className="w-14 h-14 border border-gray-200 rounded bg-gray-50 overflow-hidden">
                 <img
                   src={rowClueCells[i]}
-                  alt={`Ligne ${i + 1}`}
+                  alt={`${t.corrector.rows} ${i + 1}`}
                   style={{
                     width: '100%',
                     height: '100%',
@@ -138,10 +139,10 @@ export default function GridCorrector({
 
       <div className="flex gap-2">
         <Button variant="secondary" onClick={onBack}>
-          ← Retour
+          {t.corrector.backButton}
         </Button>
         <Button className="flex-1" onClick={handleValidate}>
-          Valider et jouer
+          {t.corrector.validateAndPlay}
         </Button>
       </div>
     </div>

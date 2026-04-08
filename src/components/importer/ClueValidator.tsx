@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import type { GridCellsResult } from '@/lib/imageProcessor'
+import { useTranslation } from '@/i18n/useTranslation'
 
 interface ClueValidatorProps {
   cells: GridCellsResult
@@ -17,6 +18,7 @@ export default function ClueValidator({
   onComplete,
   onBack,
 }: ClueValidatorProps) {
+  const t = useTranslation()
   const { nRows, nCols, colClueCells, rowClueCells } = cells
 
   // Flat sequence: col clues first (0..nCols-1), then row clues (nCols..nCols+nRows-1)
@@ -25,7 +27,9 @@ export default function ClueValidator({
 
   const total = nCols + nRows
   const isCol = current < nCols
-  const label = isCol ? `Colonne ${current + 1}` : `Ligne ${current - nCols + 1}`
+  const label = isCol
+    ? t.validator.column.replace('{n}', String(current + 1))
+    : t.validator.row.replace('{n}', String(current - nCols + 1))
   const imageUrl = isCol ? colClueCells[current] : rowClueCells[current - nCols]
   const isLast = current === total - 1
 
@@ -65,14 +69,17 @@ export default function ClueValidator({
       {/* Avertissement grille non soluble */}
       {solvable === false && (
         <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Aucune solution trouvée avec ces indices — la reconnaissance s'est probablement trompée
-          sur un ou plusieurs chiffres. Vérifiez et corrigez.
+          {t.validator.noSolutionWarning}
         </div>
       )}
 
       {/* Progress */}
       <div className="text-sm text-gray-500 font-medium">
-        {label}&nbsp;&nbsp;({current + 1} sur {total})
+        {label}&nbsp;&nbsp;(
+        {t.validator.xOfY
+          .replace('{current}', String(current + 1))
+          .replace('{total}', String(total))}
+        )
       </div>
 
       {/* Cell image */}
@@ -113,10 +120,10 @@ export default function ClueValidator({
       {/* Navigation buttons */}
       <div className="flex gap-2">
         <Button variant="secondary" onClick={goPrev}>
-          ← Précédent
+          {t.validator.previous}
         </Button>
         <Button className="flex-1" onClick={goNext}>
-          {isLast ? 'Terminer ✓' : 'Valider →'}
+          {isLast ? t.validator.finish : t.validator.validateNext}
         </Button>
       </div>
     </div>

@@ -1,0 +1,109 @@
+import type { TranslationKeys } from '../types'
+
+export const es: TranslationKeys = {
+  common: {
+    back: 'Inicio',
+    cancel: 'Cancelar',
+    restart: 'Reiniciar',
+  },
+  home: {
+    subtitle: 'Genera, juega y resuelve nonogramas',
+    openImage: 'Abrir una imagen',
+    openImageDesc: 'Importar un picross desde un archivo',
+    takePhoto: 'Tomar una foto',
+    takePhotoDesc: 'Escanear un picross con la cámara',
+    generate: 'Generar un picross',
+    generateDesc: 'Crear un puzzle aleatorio',
+    sizeLabel: 'Tamaño',
+    difficulty: 'Dificultad',
+    easy: 'Fácil',
+    medium: 'Medio',
+    hard: 'Difícil',
+    generateButton: 'Generar',
+  },
+  game: {
+    bravo: '¡Bravo!',
+    cheater: '¡Tramposo!',
+  },
+  inputMode: {
+    fill: 'Rellenar',
+    mark: 'Marcar',
+    erase: 'Borrar',
+  },
+  solver: {
+    title: 'Solucionador automático',
+    solveButton: 'Resolver',
+    solving: 'Resolviendo…',
+    error: 'No se puede resolver este puzzle.',
+  },
+  import: {
+    phaseUploadImage: 'Cargar una imagen',
+    phaseUploadCamera: 'Tomar una foto',
+    phaseSelecting: 'Selección de la cuadrícula',
+    phaseMosaic: 'Verificación del corte',
+    phaseRecognizing: 'Reconocimiento de cifras',
+    phaseValidating: 'Validación de pistas',
+    phaseCorrecting: 'Corrección de pistas',
+    recognizingProgress: 'Reconociendo cifras…',
+    extracting: 'Cortando la cuadrícula en celdas…',
+    errorGridDetect:
+      'No se pudieron detectar las líneas de la cuadrícula. Intente seleccionar el área con más precisión.',
+    errorCutting: 'Error al cortar.',
+  },
+  corner: {
+    instruction1: 'Haz clic en la primera esquina de la cuadrícula (ej. arriba a la izquierda).',
+    instruction2: 'Haz clic en la esquina opuesta (ej. abajo a la derecha).',
+    instructionAuto: 'Cuadrícula detectada automáticamente. Ajusta si es necesario y confirma.',
+    instructionManual: 'Arrastra los puntos para ajustar, luego confirma.',
+    validateSelection: 'Confirmar selección',
+  },
+  uploader: {
+    dropOrClick: 'Arrastra una imagen aquí o',
+    clickToChoose: 'haz clic para elegir',
+    acceptedFormats: 'PNG, JPG, WebP aceptados',
+    processing: 'Procesando imagen…',
+  },
+  camera: {
+    capture: 'Capturar',
+    photoTaken: 'Foto tomada',
+    takePhotoButton: 'Tomar una foto',
+  },
+  mosaic: {
+    detected:
+      'Cuadrícula detectada: {rows} × {cols}. Verifica que cada celda esté correctamente cortada.',
+    legend:
+      'Celdas naranjas = pistas (fuera de la cuadrícula). Celdas grises = interior de la cuadrícula.',
+    continueOCR: 'Continuar → Reconocimiento de cifras',
+    recrop: 'Recortar',
+  },
+  corrector: {
+    noSolution:
+      'No se encontró solución con las pistas reconocidas. Corrige los valores incorrectos y confirma.',
+    columns: 'Columnas',
+    rows: 'Filas',
+    stillNoSolution: 'La cuadrícula aún no tiene solución. Revisa las pistas de nuevo.',
+    backButton: '← Volver',
+    validateAndPlay: 'Confirmar y jugar',
+  },
+  validator: {
+    noSolutionWarning:
+      'No se encontró solución con estas pistas — el reconocimiento probablemente se equivocó en una o más cifras. Verifica y corrige.',
+    column: 'Columna {n}',
+    row: 'Fila {n}',
+    xOfY: '{current} de {total}',
+    previous: '← Anterior',
+    finish: 'Terminar ✓',
+    validateNext: 'Confirmar →',
+  },
+  options: {
+    title: 'Opciones',
+    language: 'Idioma',
+  },
+  languages: {
+    fr: 'Français',
+    en: 'English',
+    it: 'Italiano',
+    de: 'Deutsch',
+    es: 'Español',
+  },
+}

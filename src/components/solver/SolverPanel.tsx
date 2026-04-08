@@ -4,10 +4,12 @@ import Spinner from '@/components/ui/Spinner'
 import { solve } from '@/lib/solver'
 import { useGame } from '@/hooks/useGame'
 import { useGameStore } from '@/store/gameStore'
+import { useTranslation } from '@/i18n/useTranslation'
 import type { PlayGrid } from '@/lib/types'
 
 export default function SolverPanel() {
   const { puzzle, status, applyGrid, setStatus } = useGame()
+  const t = useTranslation()
   const [error, setError] = useState<string | null>(null)
 
   const handleSolve = () => {
@@ -15,11 +17,10 @@ export default function SolverPanel() {
     setError(null)
     setStatus('solving')
 
-    // Lancement asynchrone pour ne pas bloquer l'UI
     setTimeout(() => {
       const solution = solve(puzzle)
       if (!solution) {
-        setError('Impossible de résoudre ce puzzle.')
+        setError(t.solver.error)
         setStatus('playing')
         return
       }
@@ -34,7 +35,7 @@ export default function SolverPanel() {
 
   return (
     <div className="flex flex-col gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-      <h3 className="font-semibold text-gray-800">Solveur automatique</h3>
+      <h3 className="font-semibold text-gray-800">{t.solver.title}</h3>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -47,10 +48,10 @@ export default function SolverPanel() {
         {status === 'solving' ? (
           <>
             <Spinner size="sm" />
-            Résolution…
+            {t.solver.solving}
           </>
         ) : (
-          'Résoudre'
+          t.solver.solveButton
         )}
       </Button>
     </div>
