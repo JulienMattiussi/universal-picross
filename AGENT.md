@@ -5,7 +5,7 @@
 Application web de **picross / nonogramme** entièrement front-end, sans backend.
 L'utilisateur peut générer des puzzles, jouer manuellement, importer un puzzle depuis une image ou une photo, et demander une résolution automatique.
 
-L'application fonctionne sur mobile et desktop, et peut être installée comme une PWA.
+L'application fonctionne sur mobile et desktop, peut être installée comme une PWA, et supporte le mode hors-ligne.
 
 ---
 
@@ -16,13 +16,13 @@ L'application fonctionne sur mobile et desktop, et peut être installée comme u
 | React 19 + TypeScript | UI |
 | Vite 8 | Build / dev server |
 | Tailwind CSS v4 | Styles (via `@tailwindcss/vite`) |
-| Zustand | État global |
+| Zustand | État global (jeu, debug, paramètres, i18n) |
 | Vitest + Testing Library | Tests unitaires et composants |
 | Playwright | Tests e2e |
 | Prettier | Formatage |
 | ESLint (typescript-eslint) | Linting |
 | vite-plugin-pwa | Service Worker + manifest |
-| Tesseract.js | OCR (lazy-load) |
+| Tesseract.js | OCR (lazy-load, ~15 MB) |
 
 ---
 
@@ -30,34 +30,53 @@ L'application fonctionne sur mobile et desktop, et peut être installée comme u
 
 ```
 src/
-├── lib/           # Logique pure, zéro React
+├── lib/               # Logique pure, zéro React
 │   ├── types.ts
-│   ├── clues.ts
+│   ├── clues.ts       # Calcul d'indices + getClueStatuses (completed/impossible)
 │   ├── solver.ts
 │   ├── generator.ts
-│   └── imageProcessor.ts
+│   ├── imageProcessor.ts
+│   └── preloadOCR.ts  # Préchargement Tesseract pour mode offline
 ├── store/
-│   ├── gameStore.ts     # Zustand — état de jeu
-│   └── debugStore.ts    # Zustand — mode diagnostic (Ctrl+D)
+│   ├── gameStore.ts     # Zustand — état de jeu (puzzle, grid, status, cheated)
+│   ├── debugStore.ts    # Zustand — mode diagnostic (Ctrl+D)
+│   └── settingsStore.ts # Zustand — paramètres utilisateur (offlineMode)
+├── i18n/
+│   ├── types.ts         # Locale, TranslationKeys (contrat typé)
+│   ├── i18nStore.ts     # Zustand — langue courante + persistence localStorage
+│   ├── useTranslation.ts
+│   └── translations/    # fr.ts, en.ts, de.ts, it.ts, es.ts, index.ts
 ├── hooks/
 │   ├── useGame.ts
 │   ├── useTimer.ts
 │   └── useCamera.ts
 ├── components/
-│   ├── ui/              # Button, Modal, Spinner
-│   ├── game/            # Cell, ClueCell, ClueList, GameGrid, GameBoard
-│   ├── generator/       # GeneratorPanel
+│   ├── ui/              # Button, Spinner
+│   ├── game/            # Cell, ClueCell, ClueList, GameGrid, GameBoard,
+│   │                    # InputModeToggle, VictoryOverlay
 │   ├── solver/          # SolverPanel
 │   └── importer/        # ImageUploader, CameraCapture, CornerSelector, GridMosaic,
 │                        # GridCorrector, ClueValidator, ImportPanel
 └── pages/
-    ├── HomePage.tsx
-    └── GamePage.tsx
+    ├── HomePage.tsx     # 3 actions : image, photo, génération
+    ├── GamePage.tsx     # Import + jeu, breadcrumb retour
+    └── OptionsPage.tsx  # Langue, mode offline
 tests/
 ├── unit/          # Vitest — logique pure
 ├── component/     # Vitest + Testing Library
 └── e2e/           # Playwright
 ```
+
+---
+
+## Navigation
+
+L'application utilise une **navigation par état** (pas de router), gérée dans `App.tsx` :
+- `page: 'home' | 'game' | 'options'`
+- `importMode: 'image' | 'camera' | undefined` pour distinguer import vs génération
+- Les callbacks `onImport`, `onGenerated`, `onBack`, `onOptions` relient les pages.
+- **Important** : quand on navigue vers le jeu en mode import, le store de jeu est reset (`status: 'idle'`) pour éviter que l'ImportPanel soit court-circuité par un puzzle précédent encore en mémoire.
+- GamePage utilise un état local `importDone` pour savoir quand passer de l'ImportPanel au jeu.
 
 ---
 
@@ -68,8 +87,9 @@ tests/
 - **Alias `@/`** pointe vers `src/`. Toujours utiliser cet alias pour les imports internes, jamais de chemins relatifs `../../`.
 - **Tailwind v4** : utiliser `@import 'tailwindcss'` dans le CSS, pas de fichier `tailwind.config.js`. Les classes utilitaires sont la norme — pas de CSS custom sauf dans `index.css` et `theme.css`.
 - **`npm install` requiert `--legacy-peer-deps`** : `vite-plugin-pwa` n'a pas encore déclaré la compatibilité Vite 8 dans ses peer deps. Le flag est déjà dans le Makefile (`make install`).
-- **Tesseract.js est lourd** (~8 MB) : il doit rester en **import dynamique / lazy-load**, jamais importé statiquement.
+- **Tesseract.js est lourd** (~15 MB avec les données de langue) : il doit rester en **import dynamique / lazy-load**, jamais importé statiquement.
 - **TypeScript strict** : `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly` sont activés. Ne pas désactiver ces options.
+- **Pas de dépendances inutiles** : préférer les solutions custom légères quand la complexité est faible (ex : i18n custom plutôt que i18next pour ~80 clés).
 
 ---
 
@@ -79,21 +99,43 @@ tests/
 - `src/lib/` contient uniquement de la **logique pure** (fonctions, types, algorithmes) — zéro import React.
 - `src/store/` contient uniquement les stores Zustand.
 - `src/hooks/` contient uniquement des hooks React.
+- `src/i18n/` contient tout le système de traduction (types, store, hook, fichiers de traduction).
 - `src/components/` est organisé par domaine fonctionnel (`game/`, `ui/`, `importer/`…), pas par type technique.
 - Chaque composant est dans son propre fichier. Pas de fichier `index.ts` barrel sauf si explicitement demandé.
 
 ### Composants
 - Composants simples, unitaires, avec une seule responsabilité.
 - Les props sont typées via des interfaces locales (pas de `React.FC<>`).
-- Les interactions mobile (long-press → marquer une case) sont gérées dans `Cell.tsx` via `onTouchStart/End`.
+- Les interactions utilisateur dans `GameGrid.tsx` :
+  - **Clic gauche** : fill/unfill selon le `inputMode` (fill, mark, erase).
+  - **Clic droit** : toujours mark/unmark, avec support du drag (glisser).
+  - **Long-press** (mobile, 400ms) : bascule mark en mode fill uniquement.
+  - **Drag** : fonctionne pour les 3 modes (fill, mark, erase) + clic droit.
 - Le calcul de `cellSize` s'adapte à la taille de la grille pour tenir sur mobile.
+- Les **séparateurs épais** (toutes les 5 cases) ne s'affichent que si la grille est un multiple de 5 dans les deux dimensions.
+
+### Indices visuels (ClueStatuses)
+- `getClueStatuses(clue, cells)` dans `clues.ts` retourne un statut par indice :
+  - `completed` (grisé) : un groupe de cases remplies consécutives a la bonne taille, sans exiger de croix autour.
+  - `impossible` (rouge) : espace insuffisant, groupe trop grand, ou indice ne rentre dans aucun segment.
+- Les statuts sont calculés dans `GameBoard` et propagés via `ClueList` → `ClueCell`.
+
+### Internationalisation (i18n)
+- **Solution custom sans dépendance** : Zustand store + fichiers de traduction typés.
+- 5 langues : français (défaut), anglais, allemand, italien, espagnol.
+- ~80 clés organisées par namespace (`home`, `game`, `solver`, `import`, `corner`, etc.).
+- `TranslationKeys` dans `i18n/types.ts` est le contrat — TypeScript garantit la complétude de chaque fichier de traduction.
+- `useTranslation()` retourne l'objet typé `t` — autocomplétion complète, pas de clés string.
+- Interpolation simple par `.replace('{var}', value)` au site d'appel.
+- La langue est persistée en `localStorage` (clé `picross-locale`).
+- **Toutes les strings UI passent par `t.xxx.yyy`** — pas de texte français en dur dans les composants.
+- Les constantes définies au niveau module (ex : `MODES` dans `InputModeToggle`) qui contiennent des labels doivent être recalculées dans le corps du composant pour accéder au hook `useTranslation()`.
 
 ### Tests
 - **Toute logique dans `src/lib/`** doit avoir des tests unitaires dans `tests/unit/`.
 - **Tout composant non trivial** doit avoir des tests dans `tests/component/`.
 - **Ne pas mocker la logique métier** dans les tests de composants — utiliser les vraies fonctions `lib/`.
 - Les tests e2e Playwright couvrent les parcours utilisateur complets (générer → jouer → résoudre).
-- Lancer `npm run test` avant chaque commit pour s'assurer que les 49 tests passent.
 - Les stores Zustand sont testables directement via `useGameStore.getState()` / `useGameStore.setState()` — reset manuel dans `beforeEach`.
 
 ### Thème et couleurs
@@ -117,13 +159,16 @@ tests/
 
 ### État global
 - L'état de jeu passe **exclusivement** par `useGameStore` (Zustand).
-- Les composants n'utilisent pas `useState` pour l'état de jeu — uniquement pour l'état local UI (ex: drag-over, tab actif).
-- Les actions du store (`fillCell`, `markCell`, `reset`…) sont exposées via le hook `useGame`.
+- Les paramètres utilisateur (mode offline) passent par `useSettingsStore` (persisté en localStorage).
+- La langue passe par `useI18nStore` (persisté en localStorage).
+- Les composants n'utilisent pas `useState` pour l'état de jeu — uniquement pour l'état local UI (ex: drag-over, phase d'import).
+- Les actions du store (`fillCell`, `markCell`, `clearCell`, `reset`…) sont exposées via le hook `useGame`.
 
 ### Solveur
 - L'algorithme : **propagation de contraintes itérative** en premier, **backtracking** en fallback.
 - Le solveur tourne de façon synchrone dans un `setTimeout(..., 0)` pour ne pas bloquer le thread UI.
 - Ne pas utiliser de Web Worker pour le solveur sauf si des puzzles >20×20 posent des problèmes de performance mesurables.
+- Quand le solveur est utilisé, `cheated` est mis à `true` dans le store → l'animation de victoire affiche "Tricheur !" au lieu de "Bravo !".
 
 ### Mode diagnostic
 - Activé / désactivé par **Ctrl+D** depuis n'importe où dans l'application.
@@ -146,10 +191,21 @@ tests/
 - **Règle critique** : après injection des indices dans un puzzle importé, toujours appeler `solve(puzzle)` pour obtenir la vraie solution et l'affecter à `puzzle.solution`. Sans ça, `checkWin` compare contre une grille vide et la victoire n'est jamais détectée.
 - Le pipeline OCR est agnostique à la couleur : conversion en niveaux de gris (luminance) + seuillage Otsu adaptatif + inversion automatique fond clair/sombre. Fonctionne pour les picross colorés tant que le contraste est suffisant.
 
+### Mode hors-ligne
+- L'application est une **PWA** (`vite-plugin-pwa`) : tous les assets du build sont pré-cachés par le Service Worker.
+- **Le jeu fonctionne offline** nativement (génération, résolution, interface).
+- **L'import OCR nécessite un préchargement** : Tesseract.js télécharge ~15 MB de données (WASM + langue) depuis un CDN, stockées en IndexedDB par le navigateur.
+- Option **"Mode hors-ligne"** dans la page Options : toggle qui active le préchargement.
+- `preloadOCR()` dans `lib/preloadOCR.ts` : crée un worker Tesseract (provoque le téléchargement), puis le ferme. Le cache IndexedDB persiste.
+- `isOCRCached()` : vérifie la présence des données en IndexedDB via `idb-keyval`.
+- Au **démarrage** (`App.tsx`) : si `offlineMode` est activé et que le cache est vide, précharge silencieusement en arrière-plan.
+- Paramètre persisté en `localStorage` (clé `picross-settings`).
+
 ### Détection de victoire
 - `checkWin` dans `gameStore.ts` compare case par case contre `puzzle.solution`.
 - Une case qui _doit_ être vide peut rester `'unknown'` ou `'marked'` — seul `'filled'` est interdit.
 - La victoire est vérifiée à chaque `fillCell` et `applyGrid`.
+- Animation de victoire (`VictoryOverlay`) : confettis + texte "Bravo !" ou "Tricheur !" selon le flag `cheated`.
 
 ---
 

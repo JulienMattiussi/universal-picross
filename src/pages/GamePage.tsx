@@ -23,9 +23,25 @@ export default function GamePage({ importMode, onBack }: GamePageProps) {
   const boardRef = useRef<HTMLDivElement>(null)
   const [inputMode, setInputMode] = useState<InputMode>('fill')
   const [importDone, setImportDone] = useState(!importMode)
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth)
 
-  // Calcul de la taille de cellule selon l'espace disponible
-  const cellSize = puzzle ? Math.max(20, Math.min(36, Math.floor(320 / puzzle.cols))) : 32
+  useEffect(() => {
+    const onResize = () => setScreenWidth(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // Calcul de la taille de cellule — contraint sur mobile uniquement
+  const cellSize = (() => {
+    if (!puzzle) return 32
+    const MOBILE_BREAKPOINT = 640
+    if (screenWidth >= MOBILE_BREAKPOINT) return 32
+    const maxRowClueCount = Math.max(...puzzle.clues.rows.map((c) => c.length))
+    const totalCols = maxRowClueCount + puzzle.cols
+    // screenWidth - 32 (px-4 padding) - 4 (bordure grille)
+    const available = screenWidth - 36
+    return Math.max(12, Math.floor(available / totalCols))
+  })()
 
   // Quand le puzzle est chargé depuis l'import, masquer l'ImportPanel
   useEffect(() => {
