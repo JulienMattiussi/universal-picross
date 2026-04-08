@@ -120,6 +120,8 @@ export default function ImportPanel() {
     const puzzle = puzzleFromSolution(emptyGrid)
     puzzle.clues.rows = rowClues
     puzzle.clues.cols = colClues
+    const solution = solve(puzzle)
+    if (solution) puzzle.solution = solution
     loadPuzzle(puzzle)
     reset()
     resetAll()
