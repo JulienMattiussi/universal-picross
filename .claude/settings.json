@@ -3,6 +3,10 @@
     "allow": [
       "Bash(make format-check)",
       "Bash(make typecheck)",
+      "Bash(make test-unit)",
+      "Bash(make test-e2e)",
+      "Bash(make test)",
+      "Bash(npx vitest run:*)",
       "Bash(npm show:*)",
       "Bash(find:*)",
       "Bash(npm audit:*)"

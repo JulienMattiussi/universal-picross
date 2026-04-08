@@ -1,5 +1,6 @@
 import GameGrid from './GameGrid'
 import ClueList from './ClueList'
+import { getClueStatuses } from '@/lib/clues'
 import type { PicrossPuzzle, PlayGrid } from '@/lib/types'
 
 interface GameBoardProps {
@@ -22,6 +23,15 @@ export default function GameBoard({
   const maxRowClueCount = Math.max(...puzzle.clues.rows.map((c) => c.length))
   const maxColClueCount = Math.max(...puzzle.clues.cols.map((c) => c.length))
 
+  // Statuts par ligne
+  const rowStatuses = puzzle.clues.rows.map((clue, r) => getClueStatuses(clue, grid[r]))
+
+  // Statuts par colonne
+  const colStatuses = puzzle.clues.cols.map((clue, c) => {
+    const colCells = grid.map((row) => row[c])
+    return getClueStatuses(clue, colCells)
+  })
+
   return (
     <div className="inline-flex flex-col items-end select-none">
       {/* Ligne d'indices de colonnes */}
@@ -32,6 +42,7 @@ export default function GameBoard({
             clue={clue}
             direction="col"
             cellSize={cellSize}
+            statuses={colStatuses[c]}
             maxClueCount={maxColClueCount}
           />
         ))}
@@ -46,6 +57,7 @@ export default function GameBoard({
               clue={clue}
               direction="row"
               cellSize={cellSize}
+              statuses={rowStatuses[r]}
               maxClueCount={maxRowClueCount}
             />
           ))}
