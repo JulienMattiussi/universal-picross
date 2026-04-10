@@ -238,3 +238,63 @@ export function cropToContent(src: HTMLCanvasElement, pad = 8): HTMLCanvasElemen
   const ch = Math.min(height, maxY + pad + 1) - cy
   return cropCanvas(src, cx, cy, cw, ch)
 }
+
+/**
+ * Applique un flou (box blur) puis un rehaussement de contraste par manipulation de pixels.
+ * Fonctionne indépendamment du support de ctx.filter.
+ */
+export function smoothAndContrast(
+  src: HTMLCanvasElement,
+  radius = 1,
+  contrast = 1.4,
+): HTMLCanvasElement {
+  const { width, height } = src
+  const srcCtx = src.getContext('2d')!
+  const srcData = srcCtx.getImageData(0, 0, width, height)
+  const { data } = srcData
+
+  // Box blur (moyenne sur un carré de côté 2*radius+1)
+  const blurred = new Uint8ClampedArray(data.length)
+  const side = radius * 2 + 1
+  const area = side * side
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0,
+        g = 0,
+        b = 0,
+        a = 0
+      for (let dy = -radius; dy <= radius; dy++) {
+        const sy = Math.min(height - 1, Math.max(0, y + dy))
+        for (let dx = -radius; dx <= radius; dx++) {
+          const sx = Math.min(width - 1, Math.max(0, x + dx))
+          const i = (sy * width + sx) * 4
+          r += data[i]
+          g += data[i + 1]
+          b += data[i + 2]
+          a += data[i + 3]
+        }
+      }
+      const j = (y * width + x) * 4
+      blurred[j] = r / area
+      blurred[j + 1] = g / area
+      blurred[j + 2] = b / area
+      blurred[j + 3] = a / area
+    }
+  }
+
+  // Contraste autour de 128
+  for (let i = 0; i < blurred.length; i += 4) {
+    blurred[i] = Math.min(255, Math.max(0, (blurred[i] - 128) * contrast + 128))
+    blurred[i + 1] = Math.min(255, Math.max(0, (blurred[i + 1] - 128) * contrast + 128))
+    blurred[i + 2] = Math.min(255, Math.max(0, (blurred[i + 2] - 128) * contrast + 128))
+  }
+
+  const out = document.createElement('canvas')
+  out.width = width
+  out.height = height
+  const outCtx = out.getContext('2d')!
+  const outData = outCtx.createImageData(width, height)
+  outData.data.set(blurred)
+  outCtx.putImageData(outData, 0, 0)
+  return out
+}
