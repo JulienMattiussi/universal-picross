@@ -244,6 +244,16 @@ function bitmapToDataUrl(bitmap: Uint8Array, w: number, h: number): string {
 }
 
 /**
+ * Variante diagnostique : reconnaît un blob isolé et retourne le digit + score
+ * (sans appliquer le seuil MATCH_THRESHOLD). Utilisée par le banc de mesure OCR.
+ */
+export function matchSingleBlob(blobCanvas: HTMLCanvasElement): { digit: number; score: number } {
+  const bitmap = binarize(blobCanvas)
+  const { digit, score } = matchSingle(bitmap, blobCanvas.width, blobCanvas.height)
+  return { digit, score }
+}
+
+/**
  * Reconnaît les chiffres dans un canvas prétraité par template matching.
  * Retourne une string type "3 1 2" ou "" si rien reconnu.
  */

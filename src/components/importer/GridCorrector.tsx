@@ -95,7 +95,7 @@ export default function GridCorrector({
                 type="text"
                 value={colValues[i] ?? ''}
                 onChange={(e) => updateCol(i, e.target.value)}
-                className="w-14 border border-brd-strong rounded px-1 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-24 border border-brd-strong rounded px-1 py-0.5 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="1 2"
               />
             </div>
@@ -127,7 +127,7 @@ export default function GridCorrector({
                 type="text"
                 value={rowValues[i] ?? ''}
                 onChange={(e) => updateRow(i, e.target.value)}
-                className="w-14 border border-brd-strong rounded px-1 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-24 border border-brd-strong rounded px-1 py-0.5 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="1 2"
               />
             </div>

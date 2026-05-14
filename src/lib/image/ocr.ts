@@ -13,6 +13,11 @@ import {
 } from '@/lib/image/canvas'
 import { matchCellDigits, segmentBlobs, extractBlob } from '@/lib/image/templateMatch'
 import { addWhitePadding as padBlob } from '@/lib/image/canvas'
+import { matchCanvasAgainstLearnedBank, type BankCandidate } from '@/lib/image/learnedBank'
+import { getAvailableLearnedBanks } from '@/lib/image/bankRegistry'
+
+/** Seuil minimum pour considérer qu'une banque apprise reconnaît correctement un blob. */
+const LEARNED_BANK_THRESHOLD = 0.5
 
 /**
  * Corrige les chiffres OCR mal collés : si un nombre dépasse maxValue (impossible
@@ -63,6 +68,19 @@ export async function recognizeAllClueCells(
     const factor = Math.max(2, Math.ceil(128 / Math.min(cleaned.width, cleaned.height)))
     return addWhitePadding(upscaleCanvas(cleaned, factor), 16)
   }
+
+  // Charge les banques apprises packagées (Free Picross etc.)
+  let learnedBanks: BankCandidate[] = []
+  try {
+    learnedBanks = await getAvailableLearnedBanks()
+  } catch (e) {
+    if (debug) console.warn('[OCR] échec chargement banques apprises', e)
+  }
+  if (debug)
+    console.log(
+      `[OCR] ${learnedBanks.length} banque(s) apprise(s) chargée(s):`,
+      learnedBanks.map((b) => `${b.name}(${b.bank.length})`).join(', '),
+    )
 
   // Tesseract pour toutes les images (N&B et couleur)
   const { createWorker } = await import('tesseract.js')
@@ -124,40 +142,78 @@ export async function recognizeAllClueCells(
 
     const tessDigits: string[] = []
     const tmplDigits: string[] = []
+    const learnedDigits: string[] = []
+    let learnedScoreSum = 0
+    let learnedScoreCount = 0
 
     for (let b = 0; b < blobs.length; b++) {
       const blobCanvas = extractBlob(prepared, blobs[b])
 
-      // Template matching sur ce blob
+      // 1. Banque apprise (Free Picross, etc.) — la plus précise quand applicable
+      let learnedResult = ''
+      let bestLearnedScore = 0
+      let bestBankName = ''
+      for (const candidate of learnedBanks) {
+        const m = matchCanvasAgainstLearnedBank(blobCanvas, candidate.bank)
+        const score = Math.max(m.iou.score, m.hausdorff.score)
+        if (score > bestLearnedScore) {
+          bestLearnedScore = score
+          bestBankName = candidate.name
+          // Préférer Hausdorff sur banque apprise, équivalent à IoU dans nos tests
+          const digit = m.hausdorff.score >= m.iou.score ? m.hausdorff.digit : m.iou.digit
+          learnedResult = digit >= 0 ? String(digit) : ''
+        }
+      }
+
+      // 2. Template matching générique
       const tmplResult = matchCellDigits(blobCanvas, debug)
 
-      // Tesseract sur ce blob
+      // 3. Tesseract
       const tessResult = await tesseractBlob(blobCanvas)
 
       if (debug) {
         const { w, h } = blobs[b]
         console.log(
-          `[OCR #${cellIndex}] Blob ${b + 1}/${blobs.length} (${w}×${h})  Tesseract: %c${tessResult || '(vide)'}%c  Template: %c${tmplResult || '(vide)'}`,
+          `[OCR #${cellIndex}] Blob ${b + 1}/${blobs.length} (${w}×${h})  ` +
+            `Appris (${bestBankName}): %c${learnedResult || '·'} (${(bestLearnedScore * 100).toFixed(0)}%)%c  ` +
+            `Tesseract: %c${tessResult || '·'}%c  Template: %c${tmplResult || '·'}`,
+          bestLearnedScore >= LEARNED_BANK_THRESHOLD
+            ? 'color:purple;font-weight:bold'
+            : 'color:gray',
+          '',
           tessResult ? 'color:green;font-weight:bold' : 'color:red',
           '',
           tmplResult ? 'color:green;font-weight:bold' : 'color:red',
         )
       }
 
+      if (
+        learnedResult &&
+        /[0-9]/.test(learnedResult) &&
+        bestLearnedScore >= LEARNED_BANK_THRESHOLD
+      ) {
+        learnedDigits.push(learnedResult)
+        learnedScoreSum += bestLearnedScore
+        learnedScoreCount++
+      }
       if (tessResult && /[0-9]/.test(tessResult)) tessDigits.push(tessResult)
       if (tmplResult && /[0-9]/.test(tmplResult)) tmplDigits.push(tmplResult)
     }
 
+    const learnedAll = learnedDigits.join(' ')
     const tessAll = tessDigits.join(' ')
     const tmplAll = tmplDigits.join(' ')
+    const hasLearned = learnedDigits.length === blobs.length && learnedAll.length > 0
     const hasTess = tessAll.length > 0
     const hasTmpl = tmplAll.length > 0
-    const chosen = hasTess ? 'Tesseract' : hasTmpl ? 'Template' : 'rien'
-    const finalResult = hasTess ? tessAll : hasTmpl ? tmplAll : ''
+    const chosen = hasLearned ? 'Appris' : hasTess ? 'Tesseract' : hasTmpl ? 'Template' : 'rien'
+    const finalResult = hasLearned ? learnedAll : hasTess ? tessAll : hasTmpl ? tmplAll : ''
 
     if (debug) {
+      const avgScore = learnedScoreCount > 0 ? learnedScoreSum / learnedScoreCount : 0
       console.log(
-        `[OCR #${cellIndex}] FINAL → %c${chosen}: ${finalResult || '?'}`,
+        `[OCR #${cellIndex}] FINAL → %c${chosen}: ${finalResult || '?'}` +
+          (hasLearned ? ` (banque apprise, score moyen ${(avgScore * 100).toFixed(0)}%)` : ''),
         'color:blue;font-weight:bold',
       )
     }

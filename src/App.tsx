@@ -3,12 +3,13 @@ import HomePage, { type ImportMode } from '@/pages/HomePage'
 import GamePage from '@/pages/GamePage'
 import OptionsPage from '@/pages/OptionsPage'
 import TemplatesPage from '@/pages/TemplatesPage'
+import OcrBenchmarkPage from '@/pages/OcrBenchmarkPage'
 import { useDebugStore } from '@/store/debugStore'
 import { useGameStore } from '@/store/gameStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { isOCRCached, preloadOCR } from '@/lib/preloadOCR'
 
-type Page = 'home' | 'game' | 'options' | 'templates'
+type Page = 'home' | 'game' | 'options' | 'templates' | 'ocr-bench'
 
 export default function App() {
   const { debug, toggle } = useDebugStore()
@@ -64,13 +65,22 @@ export default function App() {
       {page === 'game' && <GamePage importMode={importMode} onBack={goHome} />}
       {page === 'options' && <OptionsPage onBack={goHome} />}
       {page === 'templates' && <TemplatesPage onBack={goHome} />}
+      {page === 'ocr-bench' && <OcrBenchmarkPage onBack={goHome} />}
 
       {debug && (
-        <div
-          className="fixed top-3 right-3 bg-surface-inverse text-txt-inverse text-xs font-mono px-2 py-0.5 rounded-full select-none cursor-pointer"
-          onClick={() => setPage('templates')}
-        >
-          debug
+        <div className="fixed top-3 right-3 flex gap-2 items-center">
+          <button
+            className="bg-surface-inverse text-txt-inverse text-xs font-mono px-2 py-0.5 rounded-full select-none cursor-pointer hover:opacity-80"
+            onClick={() => setPage('ocr-bench')}
+          >
+            ocr-bench
+          </button>
+          <button
+            className="bg-surface-inverse text-txt-inverse text-xs font-mono px-2 py-0.5 rounded-full select-none cursor-pointer hover:opacity-80"
+            onClick={() => setPage('templates')}
+          >
+            templates
+          </button>
         </div>
       )}
     </>
