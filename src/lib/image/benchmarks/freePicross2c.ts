@@ -50,7 +50,7 @@ export const freePicross2c: OcrFixture = {
     [6],
   ],
   defaultCorners: [
-    { x: 420, y: 395 },
-    { x: 1000, y: 870 },
+    { x: 377, y: 394 },
+    { x: 866, y: 868 },
   ],
 }

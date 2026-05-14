@@ -138,8 +138,10 @@ export function extractGridCells(
   const avgCellH = (absRowLines[absRowLines.length - 1] - absRowLines[0]) / nRows
   const clueW = Math.min(absColLines[0], Math.ceil(avgCellW * 6))
   const clueH = Math.min(absRowLines[0], Math.ceil(avgCellH * 6))
-  // Marge anti-troncature pour Lig 1 — rattrape l'imprécision de détection de absRowLines[0].
-  const edgePadY = Math.round(avgCellH * 0.15)
+  // Marge anti-troncature pour Lig 1 — rattrape l'imprécision conjuguée de
+  // expandCornersToGridEdges (CornerSelector) et detectGridStructure qui peuvent
+  // placer absRowLines[0] légèrement à l'intérieur de la première case.
+  const edgePadY = Math.round(avgCellH * 0.3)
   logData(log, 'Taille case moyenne', `${avgCellW.toFixed(1)} × ${avgCellH.toFixed(1)}px`)
   logData(log, 'Zone indices', `L=${clueW}px, H=${clueH}px (pad Lig 1 +${edgePadY}px)`)
 
