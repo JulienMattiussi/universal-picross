@@ -19,6 +19,10 @@ import { getAvailableLearnedBanks } from '@/lib/image/bankRegistry'
 /** Seuil minimum pour considérer qu'une banque apprise reconnaît correctement un blob. */
 const LEARNED_BANK_THRESHOLD = 0.5
 
+/** Au-delà de ce score, on considère le match banque apprise comme suffisamment sûr
+ *  pour skipper Tesseract et le template matching générique — gros gain en perf. */
+const LEARNED_CONFIDENT_SCORE = 0.7
+
 /**
  * Corrige les chiffres OCR mal collés : si un nombre dépasse maxValue (impossible
  * dans une grille de cette taille), il est séparé en ses chiffres individuels.
@@ -165,11 +169,15 @@ export async function recognizeAllClueCells(
         }
       }
 
+      // Si la banque apprise est confiante, on skip Tesseract + matching générique
+      // (gros gain de perf : Tesseract ~300-500ms/blob, IoU générique ~100-200ms/blob)
+      const skipFallback = bestLearnedScore >= LEARNED_CONFIDENT_SCORE && learnedResult !== ''
+
       // 2. Template matching générique
-      const tmplResult = matchCellDigits(blobCanvas, debug)
+      const tmplResult = skipFallback ? '' : matchCellDigits(blobCanvas, debug)
 
       // 3. Tesseract
-      const tessResult = await tesseractBlob(blobCanvas)
+      const tessResult = skipFallback ? '' : await tesseractBlob(blobCanvas)
 
       if (debug) {
         const { w, h } = blobs[b]

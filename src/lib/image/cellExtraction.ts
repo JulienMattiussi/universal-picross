@@ -138,8 +138,10 @@ export function extractGridCells(
   const avgCellH = (absRowLines[absRowLines.length - 1] - absRowLines[0]) / nRows
   const clueW = Math.min(absColLines[0], Math.ceil(avgCellW * 6))
   const clueH = Math.min(absRowLines[0], Math.ceil(avgCellH * 6))
+  // Marge anti-troncature pour Lig 1 — rattrape l'imprécision de détection de absRowLines[0].
+  const edgePadY = Math.round(avgCellH * 0.15)
   logData(log, 'Taille case moyenne', `${avgCellW.toFixed(1)} × ${avgCellH.toFixed(1)}px`)
-  logData(log, 'Zone indices', `L=${clueW}px, H=${clueH}px`)
+  logData(log, 'Zone indices', `L=${clueW}px, H=${clueH}px (pad Lig 1 +${edgePadY}px)`)
 
   const cell = (cx: number, cy: number, cw: number, ch: number): string => {
     const c = document.createElement('canvas')
@@ -174,9 +176,15 @@ export function extractGridCells(
     cell(absColLines[j], absRowLines[0] - clueH, absColLines[j + 1] - absColLines[j], clueH),
   )
 
-  const rowClueCells: string[] = Array.from({ length: nRows }, (_, i) =>
-    cell(absColLines[0] - clueW, absRowLines[i], clueW, absRowLines[i + 1] - absRowLines[i]),
-  )
+  // Seule extension qui s'est avérée utile et sûre : Lig 1 vers le haut, pour
+  // rattraper l'imprécision occasionnelle de absRowLines[0] qui peut tronquer
+  // le chiffre de la première ligne. Autres frontières testées avaient empiété
+  // sur des éléments d'UI hors grille (logo, icône) → régression.
+  const rowClueCells: string[] = Array.from({ length: nRows }, (_, i) => {
+    const yStart = i === 0 ? Math.max(0, absRowLines[i] - edgePadY) : absRowLines[i]
+    const yEnd = absRowLines[i + 1]
+    return cell(absColLines[0] - clueW, yStart, clueW, yEnd - yStart)
+  })
 
   return { nRows, nCols, colClueCells, rowClueCells, interiorCells, colored }
 }

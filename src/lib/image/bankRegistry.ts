@@ -20,6 +20,11 @@ let cachedBanks: BankCandidate[] | null = null
 /**
  * Retourne toutes les banques apprises packagées dans le code, chargées en mémoire.
  * Mises en cache après le premier appel.
+ *
+ * Note : la banque conserve TOUS les templates appris, y compris les exemplaires
+ * multiples du même chiffre. Trim naïf testé (N premiers/digit) → régression de
+ * précision (les premiers exemplaires peuvent être des outliers issus de cases
+ * mal segmentées). Le gain perf vient plutôt du skip Tesseract dans ocr.ts.
  */
 export async function getAvailableLearnedBanks(): Promise<BankCandidate[]> {
   if (cachedBanks) return cachedBanks
@@ -31,3 +36,5 @@ export async function getAvailableLearnedBanks(): Promise<BankCandidate[]> {
   )
   return cachedBanks
 }
+
+export type { BankCandidate, LearnedTemplate }
